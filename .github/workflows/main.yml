@@ -114,8 +114,8 @@ jobs:
         docker stop perf-container
         docker rm perf-container
         
-        # Fail if response time > 1 second
-        if (( $(echo "$response_time > 1.0" | bc -l) )); then
+        # Fail if response time > 1 second (using awk instead of bc)
+        if awk "BEGIN {exit !($response_time > 1.0)}"; then
           echo "Performance test failed: Response time too high"
           exit 1
         fi
@@ -147,7 +147,7 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
         
     - name: Log in to Docker Hub
-      if: github.event_name != 'pull_request' && github.repository == 'Keiko-Development/keiko-contracts' && secrets.DOCKERHUB_USERNAME
+      if: github.event_name != 'pull_request' && github.repository == 'Keiko-Development/keiko-contracts' && secrets.DOCKERHUB_USERNAME != ''
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -159,7 +159,7 @@ jobs:
       with:
         images: |
           ghcr.io/${{ github.repository }}
-          ${{ github.event_name != 'pull_request' && github.repository == 'Keiko-Development/keiko-contracts' && secrets.DOCKERHUB_USERNAME && format('{0}/{1}', secrets.DOCKERHUB_USERNAME, env.DOCKERHUB_REPO) || '' }}
+          ${{ github.event_name != 'pull_request' && github.repository == 'Keiko-Development/keiko-contracts' && secrets.DOCKERHUB_USERNAME != '' && format('{0}/{1}', secrets.DOCKERHUB_USERNAME, env.DOCKERHUB_REPO) || '' }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
