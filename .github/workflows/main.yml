@@ -31,8 +31,24 @@ jobs:
     - name: Run linting
       run: npm run lint
       
-    - name: Run tests
-      run: npm test
+    - name: Run tests with coverage
+      run: npm run test:coverage
+      
+    - name: Check coverage thresholds
+      run: |
+        # Extract coverage percentages from Jest output
+        COVERAGE=$(npm run test:coverage 2>&1 | grep -E "All files.*[0-9]+\.[0-9]+.*[0-9]+\.[0-9]+.*[0-9]+\.[0-9]+.*[0-9]+\.[0-9]+" | tail -1)
+        echo "Coverage: $COVERAGE"
+        
+        # Fail if coverage is below thresholds (Jest will handle this automatically with coverageThreshold config)
+      
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/lcov.info
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
       
     - name: Build Docker image for testing
       run: docker build -t test-image .
@@ -45,7 +61,60 @@ jobs:
         docker stop test-container
         docker rm test-container
 
-  # Step 2: Security Scanning (depends on tests)
+  # Step 2: Code Quality Analysis (depends on tests)
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for SonarCloud
+        
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Install dependencies
+      run: npm install
+      
+    - name: Run tests with coverage
+      run: npm run test:coverage
+      
+    - name: SonarCloud Scan
+      uses: SonarSource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        
+    - name: Quality Gate Check
+      run: |
+        echo "Checking quality gates..."
+        
+        # Check if coverage files exist
+        if [ ! -f "coverage/lcov.info" ]; then
+          echo "❌ Coverage file not found"
+          exit 1
+        fi
+        
+        # Extract coverage percentage from lcov.info
+        COVERAGE_PERCENT=$(grep -E "LF:" coverage/lcov.info | awk -F, '{lines += $1; hit += $2} END {print (hit/lines)*100}' 2>/dev/null || echo "0")
+        echo "📊 Code Coverage: $COVERAGE_PERCENT%"
+        
+        # Quality gates
+        REQUIRED_COVERAGE=85
+        if (( $(echo "$COVERAGE_PERCENT < $REQUIRED_COVERAGE" | bc -l 2>/dev/null || echo "1") )); then
+          echo "❌ Coverage $COVERAGE_PERCENT% is below required $REQUIRED_COVERAGE%"
+          exit 1
+        fi
+        
+        echo "✅ Quality gates passed!"
+        echo "✅ Coverage: $COVERAGE_PERCENT% (required: $REQUIRED_COVERAGE%)"
+
+  # Step 3: Security Scanning (depends on tests)
   security:
     name: Security Scanning
     runs-on: ubuntu-latest
@@ -128,7 +197,7 @@ jobs:
   docker:
     name: Build and Push Docker Images
     runs-on: ubuntu-latest
-    needs: [test, security, performance]
+    needs: [test, code-quality, security, performance]
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     
     permissions:
@@ -238,7 +307,7 @@ jobs:
   notify:
     name: Deployment Ready
     runs-on: ubuntu-latest
-    needs: [test, security, performance, docker]
+    needs: [test, code-quality, security, performance, docker]
     if: ${{ always() && github.event_name != 'pull_request' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main') }}
     
     steps:
