@@ -158,7 +158,7 @@ describe('OpenAPI Specification Validation', () => {
         // Extract path parameters from template
         const pathParams = [...pathTemplate.matchAll(/\{([^}]+)\}/g)].map(match => match[1]);
         
-        Object.entries(pathItem).forEach(([method, operation]) => {
+        Object.entries(pathItem).forEach(([, operation]) => {
           if (typeof operation === 'object' && operation.parameters) {
             const pathParamDefs = operation.parameters.filter(param => param.in === 'path');
             
@@ -184,15 +184,7 @@ describe('OpenAPI Specification Validation', () => {
       const content = fs.readFileSync(filePath, 'utf8');
       const spec = yaml.load(content);
       
-      const validContentTypes = [
-        'application/json',
-        'application/xml',
-        'text/plain',
-        'text/html',
-        'application/yaml',
-        'multipart/form-data',
-        'application/x-www-form-urlencoded'
-      ];
+      // Valid MIME type patterns are checked with regex
       
       Object.values(spec.paths).forEach(pathItem => {
         Object.values(pathItem).forEach(operation => {
@@ -201,7 +193,7 @@ describe('OpenAPI Specification Validation', () => {
               if (response.content) {
                 Object.keys(response.content).forEach(contentType => {
                   // Should be a valid MIME type pattern
-                  expect(contentType).toMatch(/^[a-zA-Z0-9][a-zA-Z0-9!#$&\-\^]*\/[a-zA-Z0-9][a-zA-Z0-9!#$&\-\^]*$/);
+                  expect(contentType).toMatch(/^[a-zA-Z0-9][a-zA-Z0-9!#$&\-^]*\/[a-zA-Z0-9][a-zA-Z0-9!#$&\-^]*$/);
                 });
               }
             });

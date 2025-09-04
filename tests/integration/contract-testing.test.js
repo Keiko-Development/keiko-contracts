@@ -1,5 +1,4 @@
 const request = require('supertest');
-const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
 const SwaggerParser = require('@apidevtools/swagger-parser');
@@ -319,7 +318,6 @@ describe('API Contract Testing', () => {
       
       // Error schemas should have consistent structure
       const frontendError = frontendSpec.body.components.schemas.Error;
-      const backendError = backendSpec.body.components.schemas.Error;
       
       expect(frontendError.required).toContain('error');
       expect(frontendError.required).toContain('message');

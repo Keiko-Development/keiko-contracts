@@ -1,10 +1,8 @@
 const request = require('supertest');
-const { spawn } = require('child_process');
 const path = require('path');
 
 describe('End-to-End Workflow Tests', () => {
   let app;
-  let server;
 
   beforeAll(async () => {
     // Start the server in a separate process for true E2E testing
