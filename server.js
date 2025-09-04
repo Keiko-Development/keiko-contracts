@@ -168,7 +168,7 @@ app.get('/health', (req, res) => {
 // API Versions
 app.get('/versions', (req, res) => {
   try {
-    const versions = yaml.load(fs.readFileSync('./contracts/versions.yaml', 'utf8'));
+    const versions = yaml.load(fs.readFileSync(path.join(__dirname, 'versions.yaml'), 'utf8'));
 
     logger.info('Versions endpoint accessed', {
       correlationId: req.correlationId,
@@ -192,7 +192,7 @@ app.get('/versions', (req, res) => {
 // Frontend-spezifische OpenAPI-Spec (JSON)
 app.get('/frontend/openapi.json', strictLimiter, (req, res) => {
   try {
-    const content = fs.readFileSync('./contracts/openapi/backend-frontend-api-v1.yaml', 'utf8');
+    const content = fs.readFileSync(path.join(__dirname, 'openapi/backend-frontend-api-v1.yaml'), 'utf8');
     const spec = yaml.load(content);
 
     // Track API spec downloads
@@ -221,7 +221,7 @@ app.get('/frontend/openapi.json', strictLimiter, (req, res) => {
 // Backend-spezifische OpenAPI-Spec (JSON)
 app.get('/backend/openapi.json', strictLimiter, (req, res) => {
   try {
-    const content = fs.readFileSync('./contracts/openapi/backend-frontend-api-v1.yaml', 'utf8');
+    const content = fs.readFileSync(path.join(__dirname, 'openapi/backend-frontend-api-v1.yaml'), 'utf8');
     const spec = yaml.load(content);
 
     // Track API spec downloads
@@ -250,7 +250,7 @@ app.get('/backend/openapi.json', strictLimiter, (req, res) => {
 // Generische OpenAPI-Specs
 app.get('/openapi/:spec', (req, res) => {
   const specFile = req.params.spec;
-  const filePath = path.join('./contracts/openapi', specFile);
+  const filePath = path.join(__dirname, 'openapi', specFile);
 
   // Validate file path to prevent directory traversal
   if (specFile.includes('..') || specFile.includes('/') || !specFile.endsWith('.yaml')) {
@@ -318,7 +318,7 @@ app.get('/openapi/:spec', (req, res) => {
 // AsyncAPI-Specs
 app.get('/asyncapi/:spec', (req, res) => {
   const specFile = req.params.spec;
-  const filePath = path.join('./contracts/asyncapi', specFile);
+  const filePath = path.join(__dirname, 'asyncapi', specFile);
 
   // Validate file path
   if (specFile.includes('..') || specFile.includes('/') || !specFile.endsWith('.yaml')) {
@@ -385,7 +385,7 @@ app.get('/asyncapi/:spec', (req, res) => {
 // Protobuf-Files
 app.get('/protobuf/:file', (req, res) => {
   const protoFile = req.params.file;
-  const filePath = path.join('./contracts/protobuf', protoFile);
+  const filePath = path.join(__dirname, 'protobuf', protoFile);
 
   // Validate file path
   if (protoFile.includes('..') || protoFile.includes('/') || !protoFile.endsWith('.proto')) {
@@ -440,9 +440,9 @@ app.get('/protobuf/:file', (req, res) => {
 // List all available specs
 app.get('/specs', (req, res) => {
   try {
-    const openapi = fs.readdirSync('./contracts/openapi').filter(f => f.endsWith('.yaml'));
-    const asyncapi = fs.readdirSync('./contracts/asyncapi').filter(f => f.endsWith('.yaml'));
-    const protobuf = fs.readdirSync('./contracts/protobuf').filter(f => f.endsWith('.proto'));
+    const openapi = fs.readdirSync(path.join(__dirname, 'openapi')).filter(f => f.endsWith('.yaml'));
+    const asyncapi = fs.readdirSync(path.join(__dirname, 'asyncapi')).filter(f => f.endsWith('.yaml'));
+    const protobuf = fs.readdirSync(path.join(__dirname, 'protobuf')).filter(f => f.endsWith('.proto'));
 
     const specsData = {
       openapi: openapi.map(f => `/openapi/${f}`),
@@ -478,7 +478,7 @@ app.get('/specs', (req, res) => {
 });
 
 // Error handling middleware
-app.use((error, req, res) => {
+app.use((error, req, res, next) => { // eslint-disable-line no-unused-vars
   logger.error('Unhandled error', {
     correlationId: req.correlationId,
     error: error.message,
@@ -488,31 +488,36 @@ app.use((error, req, res) => {
   });
 
   res.status(500).json({
-    error: 'Internal server error',
+    error: 'Internal Server Error',
+    message: 'An internal server error occurred',
     correlationId: req.correlationId
   });
 });
 
-// Start server
-app.listen(PORT, '0.0.0.0', () => {
-  logger.info('🚀 Keiko API Contracts Service started', {
-    port: PORT,
-    nodeEnv: process.env.NODE_ENV || 'development',
-    logLevel: logger.level,
-    version: '1.0.0'
-  });
+// Export app for testing, start server only when not in test mode
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, '0.0.0.0', () => {
+    logger.info('🚀 Keiko API Contracts Service started', {
+      port: PORT,
+      nodeEnv: process.env.NODE_ENV || 'development',
+      logLevel: logger.level,
+      version: '1.0.0'
+    });
 
-  logger.info('📋 Available endpoints:', {
-    endpoints: [
-      'GET /health - Health check',
-      'GET /metrics - Prometheus metrics',
-      'GET /versions - API versions',
-      'GET /specs - List all specifications',
-      'GET /frontend/openapi.json - Frontend API spec',
-      'GET /backend/openapi.json - Backend API spec',
-      'GET /openapi/:spec - OpenAPI specifications',
-      'GET /asyncapi/:spec - AsyncAPI specifications',
-      'GET /protobuf/:file - Protobuf definitions'
-    ]
+    logger.info('📋 Available endpoints:', {
+      endpoints: [
+        'GET /health - Health check',
+        'GET /metrics - Prometheus metrics',
+        'GET /versions - API versions',
+        'GET /specs - List all specifications',
+        'GET /frontend/openapi.json - Frontend API spec',
+        'GET /backend/openapi.json - Backend API spec',
+        'GET /openapi/:spec - OpenAPI specifications',
+        'GET /asyncapi/:spec - AsyncAPI specifications',
+        'GET /protobuf/:file - Protobuf definitions'
+      ]
+    });
   });
-});
+}
+
+module.exports = app;

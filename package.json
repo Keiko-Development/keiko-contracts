@@ -18,7 +18,10 @@
     "docker:build": "docker build -t keiko-api-contracts .",
     "docker:run": "docker run -p 3000:3000 keiko-api-contracts",
     "k8s:deploy": "kubectl apply -f kubernetes/",
-    "k8s:delete": "kubectl delete -f kubernetes/"
+    "k8s:delete": "kubectl delete -f kubernetes/",
+    "test:performance": "artillery run tests/performance/load-test-config.yml",
+    "test:performance:quick": "artillery quick --count 100 --num 10 http://localhost:3000/health",
+    "test:regression": "jest tests/integration/performance-regression.test.js --testTimeout=60000"
   },
   "keywords": [
     "api",
@@ -34,21 +37,22 @@
   "author": "Keiko Development Team",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
     "cors": "^2.8.5",
-    "js-yaml": "^4.1.0",
-    "helmet": "^7.1.0",
-    "winston": "^3.11.0",
+    "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "js-yaml": "^4.1.0",
     "prom-client": "^15.1.0",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "winston": "^3.11.0"
   },
   "devDependencies": {
-    "jest": "^29.7.0",
-    "supertest": "^6.3.3",
+    "@apidevtools/swagger-parser": "^10.1.0",
+    "artillery": "^2.0.24",
     "eslint": "^8.57.0",
+    "jest": "^29.7.0",
     "nodemon": "^3.0.1",
-    "@apidevtools/swagger-parser": "^10.1.0"
+    "supertest": "^6.3.3"
   },
   "engines": {
     "node": ">=18.0.0",

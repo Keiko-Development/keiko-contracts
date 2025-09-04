@@ -266,3 +266,6 @@ local.properties
 /dist/
 /nbdist/
 /.nb-gradle/
+
+# MCP
+.mcp.json
