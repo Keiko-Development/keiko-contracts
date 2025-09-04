@@ -1,5 +1,5 @@
 # Node.js-basierter API-Contracts-Service
-FROM node:18-alpine
+FROM node:24-alpine
 
 WORKDIR /app
 
