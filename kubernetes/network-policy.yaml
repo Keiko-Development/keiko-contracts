@@ -1,0 +1,79 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: keiko-api-contracts-network-policy
+  namespace: keiko
+spec:
+  podSelector:
+    matchLabels:
+      app: keiko-api-contracts
+  
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  # Eingehender Traffic
+  ingress:
+  # Erlaubt Traffic vom NGINX Ingress Controller
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 3000
+  
+  # Erlaubt Traffic von anderen Keiko-Services
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: keiko
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/part-of: keiko
+    ports:
+    - protocol: TCP
+      port: 3000
+  
+  # Erlaubt Health Check Traffic von Kubernetes
+  - from: []
+    ports:
+    - protocol: TCP
+      port: 3000
+  
+  # Ausgehender Traffic
+  egress:
+  # DNS-Auflösung
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  
+  # HTTPS für externe APIs (falls benötigt)
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+  
+  # HTTP für Health Checks und Metrics (intern)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: TCP
+      port: 80
+
+---
+apiVersion: v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all-default
+  namespace: keiko
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
