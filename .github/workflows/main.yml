@@ -150,13 +150,6 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
         
-    - name: Log in to Docker Hub
-      if: ${{ github.event_name != 'pull_request' && secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-        
     - name: Extract metadata (GitHub Container Registry)
       id: meta-ghcr
       uses: docker/metadata-action@v5
@@ -177,26 +170,6 @@ jobs:
           org.opencontainers.image.vendor=Keiko Development
           org.opencontainers.image.licenses=MIT
           
-    - name: Extract metadata (Docker Hub)
-      id: meta-dockerhub
-      if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_REPO }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=sha,prefix={{branch}}-
-          type=raw,value=latest,enable={{is_default_branch}}
-          type=raw,value=develop,enable=${{ github.ref == 'refs/heads/develop' }}
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=semver,pattern={{major}}
-        labels: |
-          org.opencontainers.image.title=Keiko API Contracts Service
-          org.opencontainers.image.description=Containerized HTTP service for API contracts and specifications
-          org.opencontainers.image.vendor=Keiko Development
-          org.opencontainers.image.licenses=MIT
           
     - name: Build Docker image (PR)
       if: ${{ github.event_name == 'pull_request' }}
@@ -222,17 +195,6 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
         
-    - name: Build and push Docker image (Docker Hub)
-      if: ${{ github.event_name != 'pull_request' && secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        platforms: linux/amd64,linux/arm64
-        push: true
-        tags: ${{ steps.meta-dockerhub.outputs.tags }}
-        labels: ${{ steps.meta-dockerhub.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
 
   # Step 5: Final Notification
   notify:
