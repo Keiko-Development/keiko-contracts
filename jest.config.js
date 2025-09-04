@@ -8,15 +8,28 @@ module.exports = {
   collectCoverageFrom: [
     'server.js',
     '!node_modules/**',
-    '!coverage/**'
+    '!coverage/**',
+    '!**/tests/**'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: [
     'text',
     'lcov',
-    'html'
+    'html',
+    'json',
+    'text-summary'
   ],
-  testTimeout: 10000,
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 85,
+      lines: 85,
+      statements: 85
+    }
+  },
+  collectCoverage: true,
+  testTimeout: 30000,
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
-  verbose: true
+  verbose: true,
+  maxWorkers: 1 // Prevent port conflicts in integration tests
 };
