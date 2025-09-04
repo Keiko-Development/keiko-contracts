@@ -1,0 +1,32 @@
+version: '3.8'
+
+networks:
+  keiko-network:
+    driver: bridge
+
+services:
+  # API Contracts Service (Spec Server)
+  keiko-api-contracts:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: keiko-api-contracts-dev
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+    volumes:
+      - ./openapi:/app/contracts/openapi:ro
+      - ./asyncapi:/app/contracts/asyncapi:ro
+      - ./protobuf:/app/contracts/protobuf:ro
+      - ./versions.yaml:/app/contracts/versions.yaml:ro
+      - ./README.md:/app/contracts/README.md:ro
+    networks:
+      - keiko-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
