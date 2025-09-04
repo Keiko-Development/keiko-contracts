@@ -1,0 +1,516 @@
+asyncapi: 3.0.0
+info:
+  title: Keiko Backend Events API
+  version: 1.0.0
+  description: |
+    Event-basierte Kommunikation zwischen Keiko Backend Services
+    Unterstützt Real-time Updates für Frontend und SDK
+  contact:
+    name: Keiko Development Team
+    url: https://github.com/keiko-dev-team
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+defaultContentType: application/json
+
+servers:
+  development:
+    host: localhost:4222
+    protocol: nats
+    description: Development NATS Server
+  production:
+    host: nats.keiko.dev:4222
+    protocol: nats
+    description: Production NATS Server
+
+channels:
+  agent.registered:
+    address: agent.registered
+    description: Agent wurde registriert
+    messages:
+      AgentRegisteredEvent:
+        $ref: '#/components/messages/AgentRegisteredEvent'
+
+  agent.unregistered:
+    address: agent.unregistered
+    description: Agent wurde deregistriert
+    messages:
+      AgentUnregisteredEvent:
+        $ref: '#/components/messages/AgentUnregisteredEvent'
+
+  agent.status_changed:
+    address: agent.status_changed
+    description: Agent-Status hat sich geändert
+    messages:
+      AgentStatusChangedEvent:
+        $ref: '#/components/messages/AgentStatusChangedEvent'
+
+  function.registered:
+    address: function.registered
+    description: Function wurde registriert
+    messages:
+      FunctionRegisteredEvent:
+        $ref: '#/components/messages/FunctionRegisteredEvent'
+
+  function.called:
+    address: function.called
+    description: Function wurde aufgerufen
+    messages:
+      FunctionCalledEvent:
+        $ref: '#/components/messages/FunctionCalledEvent'
+
+  function.completed:
+    address: function.completed
+    description: Function-Ausführung abgeschlossen
+    messages:
+      FunctionCompletedEvent:
+        $ref: '#/components/messages/FunctionCompletedEvent'
+
+  system.health:
+    address: system.health
+    description: System-Gesundheitsstatus
+    messages:
+      SystemHealthEvent:
+        $ref: '#/components/messages/SystemHealthEvent'
+
+  user.session_started:
+    address: user.session_started
+    description: Benutzer-Session gestartet
+    messages:
+      UserSessionStartedEvent:
+        $ref: '#/components/messages/UserSessionStartedEvent'
+
+  user.session_ended:
+    address: user.session_ended
+    description: Benutzer-Session beendet
+    messages:
+      UserSessionEndedEvent:
+        $ref: '#/components/messages/UserSessionEndedEvent'
+
+  error.occurred:
+    address: error.occurred
+    description: Fehler aufgetreten
+    messages:
+      ErrorOccurredEvent:
+        $ref: '#/components/messages/ErrorOccurredEvent'
+
+operations:
+  publishAgentRegistered:
+    action: send
+    channel:
+      $ref: '#/channels/agent.registered'
+    summary: Publiziert Agent-Registrierung
+    description: Wird ausgelöst wenn ein Agent registriert wird
+
+  subscribeAgentRegistered:
+    action: receive
+    channel:
+      $ref: '#/channels/agent.registered'
+    summary: Abonniert Agent-Registrierungen
+    description: Empfängt Benachrichtigungen über neue Agent-Registrierungen
+
+  publishAgentStatusChanged:
+    action: send
+    channel:
+      $ref: '#/channels/agent.status_changed'
+    summary: Publiziert Agent-Status-Änderung
+    description: Wird ausgelöst wenn sich der Agent-Status ändert
+
+  subscribeAgentStatusChanged:
+    action: receive
+    channel:
+      $ref: '#/channels/agent.status_changed'
+    summary: Abonniert Agent-Status-Änderungen
+    description: Empfängt Benachrichtigungen über Agent-Status-Änderungen
+
+  publishFunctionCalled:
+    action: send
+    channel:
+      $ref: '#/channels/function.called'
+    summary: Publiziert Function-Aufruf
+    description: Wird ausgelöst wenn eine Function aufgerufen wird
+
+  subscribeFunctionCompleted:
+    action: receive
+    channel:
+      $ref: '#/channels/function.completed'
+    summary: Abonniert Function-Abschlüsse
+    description: Empfängt Benachrichtigungen über abgeschlossene Function-Ausführungen
+
+components:
+  messages:
+    AgentRegisteredEvent:
+      name: AgentRegisteredEvent
+      title: Agent Registered Event
+      summary: Ein Agent wurde erfolgreich registriert
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/AgentRegisteredPayload'
+
+    AgentUnregisteredEvent:
+      name: AgentUnregisteredEvent
+      title: Agent Unregistered Event
+      summary: Ein Agent wurde deregistriert
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/AgentUnregisteredPayload'
+
+    AgentStatusChangedEvent:
+      name: AgentStatusChangedEvent
+      title: Agent Status Changed Event
+      summary: Agent-Status hat sich geändert
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/AgentStatusChangedPayload'
+
+    FunctionRegisteredEvent:
+      name: FunctionRegisteredEvent
+      title: Function Registered Event
+      summary: Eine Function wurde registriert
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/FunctionRegisteredPayload'
+
+    FunctionCalledEvent:
+      name: FunctionCalledEvent
+      title: Function Called Event
+      summary: Eine Function wurde aufgerufen
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/FunctionCalledPayload'
+
+    FunctionCompletedEvent:
+      name: FunctionCompletedEvent
+      title: Function Completed Event
+      summary: Function-Ausführung wurde abgeschlossen
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/FunctionCompletedPayload'
+
+    SystemHealthEvent:
+      name: SystemHealthEvent
+      title: System Health Event
+      summary: System-Gesundheitsstatus-Update
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/SystemHealthPayload'
+
+    UserSessionStartedEvent:
+      name: UserSessionStartedEvent
+      title: User Session Started Event
+      summary: Benutzer-Session wurde gestartet
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/UserSessionStartedPayload'
+
+    UserSessionEndedEvent:
+      name: UserSessionEndedEvent
+      title: User Session Ended Event
+      summary: Benutzer-Session wurde beendet
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/UserSessionEndedPayload'
+
+    ErrorOccurredEvent:
+      name: ErrorOccurredEvent
+      title: Error Occurred Event
+      summary: Ein Fehler ist aufgetreten
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ErrorOccurredPayload'
+
+  schemas:
+    BaseEvent:
+      type: object
+      required:
+        - event_id
+        - timestamp
+        - source
+      properties:
+        event_id:
+          type: string
+          format: uuid
+          description: Eindeutige Event-ID
+        timestamp:
+          type: string
+          format: date-time
+          description: Event-Zeitstempel
+        source:
+          type: string
+          description: Event-Quelle
+          examples:
+            - "keiko-backend"
+            - "keiko-frontend"
+            - "kei-agent-py-sdk"
+        correlation_id:
+          type: string
+          format: uuid
+          description: Korrelations-ID für Request-Tracking
+
+    AgentRegisteredPayload:
+      allOf:
+        - $ref: '#/components/schemas/BaseEvent'
+        - type: object
+          required:
+            - agent_id
+            - agent_type
+          properties:
+            agent_id:
+              type: string
+              description: Agent-ID
+            platform_agent_id:
+              type: string
+              description: Platform-zugewiesene Agent-ID
+            agent_type:
+              type: string
+              description: Agent-Typ
+            capabilities:
+              type: array
+              items:
+                type: string
+              description: Agent-Fähigkeiten
+            metadata:
+              type: object
+              additionalProperties: true
+              description: Zusätzliche Metadaten
+
+    AgentUnregisteredPayload:
+      allOf:
+        - $ref: '#/components/schemas/BaseEvent'
+        - type: object
+          required:
+            - agent_id
+          properties:
+            agent_id:
+              type: string
+              description: Agent-ID
+            reason:
+              type: string
+              description: Grund für Deregistrierung
+
+    AgentStatusChangedPayload:
+      allOf:
+        - $ref: '#/components/schemas/BaseEvent'
+        - type: object
+          required:
+            - agent_id
+            - old_status
+            - new_status
+          properties:
+            agent_id:
+              type: string
+              description: Agent-ID
+            old_status:
+              type: string
+              enum: [online, offline, busy, error]
+              description: Alter Status
+            new_status:
+              type: string
+              enum: [online, offline, busy, error]
+              description: Neuer Status
+            reason:
+              type: string
+              description: Grund für Status-Änderung
+
+    FunctionRegisteredPayload:
+      allOf:
+        - $ref: '#/components/schemas/BaseEvent'
+        - type: object
+          required:
+            - function_id
+            - function_name
+            - agent_id
+          properties:
+            function_id:
+              type: string
+              description: Function-ID
+            function_name:
+              type: string
+              description: Function-Name
+            agent_id:
+              type: string
+              description: Zugehöriger Agent
+            description:
+              type: string
+              description: Function-Beschreibung
+            tags:
+              type: array
+              items:
+                type: string
+              description: Function-Tags
+
+    FunctionCalledPayload:
+      allOf:
+        - $ref: '#/components/schemas/BaseEvent'
+        - type: object
+          required:
+            - request_id
+            - function_id
+            - agent_id
+          properties:
+            request_id:
+              type: string
+              format: uuid
+              description: Request-ID
+            function_id:
+              type: string
+              description: Function-ID
+            function_name:
+              type: string
+              description: Function-Name
+            agent_id:
+              type: string
+              description: Ausführender Agent
+            user_id:
+              type: string
+              description: Benutzer-ID
+            session_id:
+              type: string
+              description: Session-ID
+            parameters:
+              type: object
+              additionalProperties: true
+              description: Function-Parameter
+
+    FunctionCompletedPayload:
+      allOf:
+        - $ref: '#/components/schemas/BaseEvent'
+        - type: object
+          required:
+            - request_id
+            - function_id
+            - agent_id
+            - success
+          properties:
+            request_id:
+              type: string
+              format: uuid
+              description: Request-ID
+            function_id:
+              type: string
+              description: Function-ID
+            function_name:
+              type: string
+              description: Function-Name
+            agent_id:
+              type: string
+              description: Ausführender Agent
+            success:
+              type: boolean
+              description: Ausführung erfolgreich
+            result:
+              type: object
+              additionalProperties: true
+              description: Function-Ergebnis
+            error:
+              type: string
+              description: Fehlermeldung (falls fehlgeschlagen)
+            execution_time_ms:
+              type: integer
+              description: Ausführungszeit in Millisekunden
+
+    SystemHealthPayload:
+      allOf:
+        - $ref: '#/components/schemas/BaseEvent'
+        - type: object
+          required:
+            - service_name
+            - status
+          properties:
+            service_name:
+              type: string
+              description: Service-Name
+            status:
+              type: string
+              enum: [healthy, degraded, unhealthy]
+              description: Gesundheitsstatus
+            version:
+              type: string
+              description: Service-Version
+            metrics:
+              type: object
+              properties:
+                cpu_usage_percent:
+                  type: number
+                  description: CPU-Auslastung in Prozent
+                memory_usage_percent:
+                  type: number
+                  description: Speicher-Auslastung in Prozent
+                active_connections:
+                  type: integer
+                  description: Aktive Verbindungen
+                total_requests:
+                  type: integer
+                  description: Gesamtanzahl Anfragen
+
+    UserSessionStartedPayload:
+      allOf:
+        - $ref: '#/components/schemas/BaseEvent'
+        - type: object
+          required:
+            - user_id
+            - session_id
+          properties:
+            user_id:
+              type: string
+              description: Benutzer-ID
+            session_id:
+              type: string
+              description: Session-ID
+            user_agent:
+              type: string
+              description: User-Agent-String
+            ip_address:
+              type: string
+              description: IP-Adresse
+
+    UserSessionEndedPayload:
+      allOf:
+        - $ref: '#/components/schemas/BaseEvent'
+        - type: object
+          required:
+            - user_id
+            - session_id
+          properties:
+            user_id:
+              type: string
+              description: Benutzer-ID
+            session_id:
+              type: string
+              description: Session-ID
+            duration_seconds:
+              type: integer
+              description: Session-Dauer in Sekunden
+            reason:
+              type: string
+              description: Grund für Session-Ende
+
+    ErrorOccurredPayload:
+      allOf:
+        - $ref: '#/components/schemas/BaseEvent'
+        - type: object
+          required:
+            - error_type
+            - error_message
+          properties:
+            error_type:
+              type: string
+              description: Fehlertyp
+            error_message:
+              type: string
+              description: Fehlermeldung
+            error_code:
+              type: string
+              description: Fehlercode
+            stack_trace:
+              type: string
+              description: Stack-Trace
+            context:
+              type: object
+              additionalProperties: true
+              description: Zusätzlicher Kontext
+            severity:
+              type: string
+              enum: [low, medium, high, critical]
+              description: Schweregrad

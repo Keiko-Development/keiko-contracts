@@ -1,0 +1,538 @@
+openapi: 3.0.3
+info:
+  title: Keiko Backend-SDK API
+  description: API für Kommunikation zwischen Keiko Backend und kei-agent-py-sdk
+  version: 1.0.0
+  contact:
+    name: Keiko Development Team
+    url: https://github.com/keiko-dev-team
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Development Server
+  - url: https://api.keiko.dev
+    description: Production Server
+
+security:
+  - bearerAuth: []
+  - apiKeyAuth: []
+
+paths:
+  /api/v1/sdk/agents/register:
+    post:
+      summary: Register SDK Agent
+      description: Registriert einen Agent vom SDK beim Backend
+      operationId: registerSDKAgent
+      tags:
+        - SDK Agent Management
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SDKAgentRegistration'
+      responses:
+        '201':
+          description: Agent erfolgreich registriert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRegistrationResponse'
+        '400':
+          description: Ungültige Anfrage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Agent bereits registriert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/sdk/agents/{agent_id}:
+    delete:
+      summary: Unregister SDK Agent
+      description: Deregistriert einen Agent vom SDK
+      operationId: unregisterSDKAgent
+      tags:
+        - SDK Agent Management
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Agent-ID
+      responses:
+        '200':
+          description: Agent erfolgreich deregistriert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          description: Agent nicht gefunden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/sdk/agents/{agent_id}/call:
+    post:
+      summary: Call Agent Function
+      description: Ruft eine Function auf einem Agent auf
+      operationId: callSDKAgentFunction
+      tags:
+        - SDK Function Calls
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Agent-ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FunctionCallRequest'
+      responses:
+        '200':
+          description: Function erfolgreich ausgeführt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FunctionCallResponse'
+        '400':
+          description: Ungültige Anfrage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Agent oder Function nicht gefunden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Function-Ausführung fehlgeschlagen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/sdk/agents/{agent_id}/status:
+    get:
+      summary: Get Agent Status
+      description: Holt den Status eines Agents
+      operationId: getSDKAgentStatus
+      tags:
+        - SDK Agent Management
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Agent-ID
+      responses:
+        '200':
+          description: Agent-Status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentStatusResponse'
+        '404':
+          description: Agent nicht gefunden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/sdk/functions/register:
+    post:
+      summary: Register Function
+      description: Registriert eine Function beim Backend
+      operationId: registerSDKFunction
+      tags:
+        - SDK Function Management
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FunctionRegistration'
+      responses:
+        '201':
+          description: Function erfolgreich registriert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FunctionRegistrationResponse'
+        '400':
+          description: Ungültige Anfrage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/sdk/functions/{function_id}:
+    delete:
+      summary: Unregister Function
+      description: Deregistriert eine Function
+      operationId: unregisterSDKFunction
+      tags:
+        - SDK Function Management
+      parameters:
+        - name: function_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Function-ID
+      responses:
+        '200':
+          description: Function erfolgreich deregistriert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          description: Function nicht gefunden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/sdk/health:
+    get:
+      summary: SDK Health Check
+      description: Gesundheitscheck für SDK-Backend-Kommunikation
+      operationId: sdkHealthCheck
+      tags:
+        - SDK Health
+      responses:
+        '200':
+          description: Service ist gesund
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Token für SDK-Authentifizierung
+    
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-SDK-API-Key
+      description: API Key für SDK-Authentifizierung
+
+  schemas:
+    SDKAgentRegistration:
+      type: object
+      required:
+        - agent_id
+        - agent_type
+        - capabilities
+      properties:
+        agent_id:
+          type: string
+          description: Eindeutige Agent-ID
+          example: "code-assistant-001"
+        agent_type:
+          type: string
+          description: Typ des Agents
+          example: "code_assistant"
+        capabilities:
+          type: array
+          items:
+            type: string
+          description: Agent-Fähigkeiten
+          example: ["code_generation", "code_review"]
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+          description: Zusätzliche Metadaten
+        config:
+          $ref: '#/components/schemas/AgentConfig'
+
+    AgentConfig:
+      type: object
+      properties:
+        max_concurrent_requests:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 10
+          description: Maximale gleichzeitige Anfragen
+        timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 300
+          default: 30
+          description: Standard-Timeout in Sekunden
+        enable_metrics:
+          type: boolean
+          default: true
+          description: Metriken-Sammlung aktivieren
+
+    AgentRegistrationResponse:
+      type: object
+      properties:
+        agent_id:
+          type: string
+          description: Agent-ID
+        platform_agent_id:
+          type: string
+          description: Platform-zugewiesene ID
+        registered:
+          type: boolean
+          description: Registrierung erfolgreich
+        registered_at:
+          type: string
+          format: date-time
+          description: Registrierungszeitpunkt
+        message:
+          type: string
+          description: Statusmeldung
+
+    FunctionCallRequest:
+      type: object
+      required:
+        - function_name
+        - parameters
+      properties:
+        request_id:
+          type: string
+          description: Eindeutige Request-ID
+        function_name:
+          type: string
+          description: Name der aufzurufenden Function
+          example: "generate_code"
+        parameters:
+          type: object
+          additionalProperties: true
+          description: Function-Parameter
+        user_id:
+          type: string
+          description: Benutzer-ID
+        session_id:
+          type: string
+          description: Session-ID
+        timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 300
+          default: 30
+          description: Request-Timeout
+
+    FunctionCallResponse:
+      type: object
+      properties:
+        request_id:
+          type: string
+          description: Request-ID
+        agent_id:
+          type: string
+          description: Agent-ID
+        success:
+          type: boolean
+          description: Ausführung erfolgreich
+        result:
+          type: object
+          additionalProperties: true
+          description: Function-Ergebnis
+        error:
+          type: string
+          description: Fehlermeldung (falls fehlgeschlagen)
+        execution_time_ms:
+          type: integer
+          description: Ausführungszeit in Millisekunden
+        timestamp:
+          type: string
+          format: date-time
+          description: Response-Zeitstempel
+
+    AgentStatusResponse:
+      type: object
+      properties:
+        agent_id:
+          type: string
+          description: Agent-ID
+        status:
+          type: string
+          enum: [online, offline, busy, error]
+          description: Agent-Status
+        capabilities:
+          type: array
+          items:
+            type: string
+          description: Aktuelle Fähigkeiten
+        metrics:
+          $ref: '#/components/schemas/AgentMetrics'
+        last_activity:
+          type: string
+          format: date-time
+          description: Letzte Aktivität
+
+    AgentMetrics:
+      type: object
+      properties:
+        total_requests:
+          type: integer
+          description: Gesamtanzahl Anfragen
+        successful_requests:
+          type: integer
+          description: Erfolgreiche Anfragen
+        failed_requests:
+          type: integer
+          description: Fehlgeschlagene Anfragen
+        average_response_time_ms:
+          type: number
+          description: Durchschnittliche Antwortzeit
+
+    FunctionRegistration:
+      type: object
+      required:
+        - function_id
+        - function_name
+        - agent_id
+      properties:
+        function_id:
+          type: string
+          description: Eindeutige Function-ID
+        function_name:
+          type: string
+          description: Function-Name
+        description:
+          type: string
+          description: Function-Beschreibung
+        agent_id:
+          type: string
+          description: Zugehöriger Agent
+        schema:
+          $ref: '#/components/schemas/FunctionSchema'
+        tags:
+          type: array
+          items:
+            type: string
+          description: Function-Tags
+
+    FunctionSchema:
+      type: object
+      properties:
+        inputs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParameterSchema'
+          description: Input-Parameter
+        output:
+          $ref: '#/components/schemas/ParameterSchema'
+          description: Output-Schema
+        required_inputs:
+          type: array
+          items:
+            type: string
+          description: Erforderliche Input-Parameter
+
+    ParameterSchema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Parameter-Name
+        type:
+          type: string
+          enum: [string, integer, number, boolean, array, object]
+          description: Parameter-Typ
+        description:
+          type: string
+          description: Parameter-Beschreibung
+        required:
+          type: boolean
+          description: Parameter erforderlich
+
+    FunctionRegistrationResponse:
+      type: object
+      properties:
+        function_id:
+          type: string
+          description: Function-ID
+        registered:
+          type: boolean
+          description: Registrierung erfolgreich
+        message:
+          type: string
+          description: Statusmeldung
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+          description: Service-Status
+        version:
+          type: string
+          description: Service-Version
+        timestamp:
+          type: string
+          format: date-time
+          description: Health-Check-Zeitstempel
+        dependencies:
+          type: object
+          additionalProperties:
+            type: string
+          description: Abhängigkeiten-Status
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Operation erfolgreich
+        message:
+          type: string
+          description: Statusmeldung
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Fehlermeldung
+        code:
+          type: string
+          description: Fehlercode
+        details:
+          type: object
+          additionalProperties: true
+          description: Zusätzliche Fehlerdetails
+        timestamp:
+          type: string
+          format: date-time
+          description: Fehlerzeitpunkt
+
+tags:
+  - name: SDK Agent Management
+    description: Agent-Verwaltung für SDK
+  - name: SDK Function Calls
+    description: Function-Aufrufe über SDK
+  - name: SDK Function Management
+    description: Function-Verwaltung für SDK
+  - name: SDK Health
+    description: Gesundheitschecks für SDK

@@ -1,0 +1,63 @@
+# Keiko API Contracts Version Management
+# Semantic versioning for all API contracts
+
+version_info:
+  schema_version: "1.0.0"
+  last_updated: "2024-09-04T13:00:00Z"
+  maintainer: "Keiko Development Team"
+  repository: "https://github.com/keiko-dev/keiko-api-contracts"
+
+# REST API Versions
+openapi:
+  backend_frontend_api:
+    current_version: "1.0.0"
+    versions:
+      "1.0.0":
+        file: "openapi/backend-frontend-api-v1.yaml"
+        status: "active"
+        release_date: "2024-09-04"
+        changelog:
+          - "Initial release"
+          - "Agent management endpoints"
+          - "Function call endpoints"
+          - "Voice processing endpoints"
+          - "Health check endpoint"
+        breaking_changes: []
+        deprecated_features: []
+
+# Event/WebSocket API Versions
+asyncapi:
+  backend_frontend_events:
+    current_version: "1.0.0"
+    versions:
+      "1.0.0":
+        file: "asyncapi/backend-frontend-events-v1.yaml"
+        status: "active"
+        release_date: "2024-09-04"
+        changelog:
+          - "Initial real-time event specification"
+          - "Agent status events"
+          - "Function progress events"
+          - "Voice processing events"
+          - "System health events"
+          - "User notifications"
+        breaking_changes: []
+        deprecated_features: []
+
+# gRPC API Versions
+protobuf:
+  agent_service:
+    current_version: "1.0.0"
+    versions:
+      "1.0.0":
+        file: "protobuf/agent_service.proto"
+        status: "active"
+        release_date: "2024-09-04"
+        changelog:
+          - "Initial gRPC service definition"
+          - "Agent registration and management"
+          - "Function call handling"
+          - "Event streaming"
+          - "Health checking"
+        breaking_changes: []
+        deprecated_features: []
