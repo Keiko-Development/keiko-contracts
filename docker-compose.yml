@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  keiko-api-contracts:
+    # Verwende das veröffentlichte Image von GitHub Container Registry
+    image: ghcr.io/keiko-development/keiko-contracts:latest
+    
+    # Alternativ: Verwende Docker Hub Image
+    # image: oscharko/keiko-api-contracts:latest
+    
+    # Oder baue lokal (für Entwicklung)
+    # build: .
+    
+    container_name: keiko-api-contracts
+    
+    ports:
+      - "3001:3000"
+    
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - LOG_LEVEL=info
+    
+    # Health Check
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Restart Policy
+    restart: unless-stopped
+    
+    # Security
+    security_opt:
+      - no-new-privileges:true
+    
+    # Resource Limits
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+    
+    # Labels für bessere Organisation
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.keiko-api-contracts.rule=Host(`api-contracts.localhost`)"
+      - "traefik.http.services.keiko-api-contracts.loadbalancer.server.port=3000"
+      - "com.keiko.service=api-contracts"
+      - "com.keiko.version=1.0.0"
+
+  # Optional: Prometheus für lokales Monitoring
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: keiko-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus-local.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    profiles: ["monitoring"]
+
+  # Optional: Grafana für lokales Monitoring
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: keiko-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./observability/grafana-local:/etc/grafana/provisioning:ro
+    restart: unless-stopped
+    profiles: ["monitoring"]
+    depends_on:
+      - prometheus
+
+volumes:
+  grafana-data:
+    driver: local
+
+networks:
+  default:
+    name: keiko-network
