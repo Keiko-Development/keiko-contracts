@@ -484,3 +484,6 @@ MIT License - siehe [LICENSE](LICENSE) für Details.
 - **OpenAPI Specification:** [https://swagger.io/specification/](https://swagger.io/specification/)
 - **AsyncAPI Specification:** [https://www.asyncapi.com/](https://www.asyncapi.com/)
 - **Protocol Buffers:** [https://developers.google.com/protocol-buffers](https://developers.google.com/protocol-buffers)
+
+---
+*Letzte Aktualisierung: 2025-09-04*
