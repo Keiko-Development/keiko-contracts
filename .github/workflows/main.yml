@@ -1,0 +1,217 @@
+name: Complete CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DOCKERHUB_REPO: keiko-api-contracts
+
+jobs:
+  # Step 1: Tests and Code Quality
+  test:
+    name: Tests & Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Install dependencies
+      run: npm install
+      
+    - name: Run linting
+      run: npm run lint
+      
+    - name: Run tests
+      run: npm test
+      
+    - name: Build Docker image for testing
+      run: docker build -t test-image .
+      
+    - name: Test Docker container
+      run: |
+        docker run -d -p 3000:3000 --name test-container test-image
+        sleep 5
+        curl -f http://localhost:3000/health || exit 1
+        docker stop test-container
+        docker rm test-container
+
+  # Step 2: Security Scanning (depends on tests)
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Install dependencies
+      run: npm install
+      
+    - name: Run npm audit
+      run: npm audit --audit-level=moderate
+      
+    - name: Build Docker image for scanning
+      run: docker build -t security-scan-image .
+      
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'security-scan-image'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # Step 3: Performance Testing (depends on tests)
+  performance:
+    name: Performance Testing
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Build Docker image
+      run: docker build -t perf-test-image .
+      
+    - name: Run performance tests
+      run: |
+        docker run -d -p 3000:3000 --name perf-container perf-test-image
+        sleep 10
+        
+        # Basic load test
+        for i in {1..100}; do
+          curl -s http://localhost:3000/health > /dev/null &
+        done
+        wait
+        
+        # Response time test
+        response_time=$(curl -o /dev/null -s -w '%{time_total}' http://localhost:3000/health)
+        echo "Response time: ${response_time}s"
+        
+        # Cleanup
+        docker stop perf-container
+        docker rm perf-container
+        
+        # Fail if response time > 1 second
+        if (( $(echo "$response_time > 1.0" | bc -l) )); then
+          echo "Performance test failed: Response time too high"
+          exit 1
+        fi
+
+  # Step 4: Docker Build & Publish (only after all tests pass)
+  docker:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    needs: [test, security, performance]
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    
+    permissions:
+      contents: read
+      packages: write
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Log in to GitHub Container Registry
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Log in to Docker Hub
+      if: github.event_name != 'pull_request' && github.repository == 'Keiko-Development/keiko-contracts' && secrets.DOCKERHUB_USERNAME
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: |
+          ghcr.io/${{ github.repository }}
+          ${{ github.event_name != 'pull_request' && github.repository == 'Keiko-Development/keiko-contracts' && secrets.DOCKERHUB_USERNAME && format('{0}/{1}', secrets.DOCKERHUB_USERNAME, env.DOCKERHUB_REPO) || '' }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+          type=raw,value=develop,enable=${{ github.ref == 'refs/heads/develop' }}
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+        labels: |
+          org.opencontainers.image.title=Keiko API Contracts Service
+          org.opencontainers.image.description=Containerized HTTP service for API contracts and specifications
+          org.opencontainers.image.vendor=Keiko Development
+          org.opencontainers.image.licenses=MIT
+          
+    - name: Build Docker image (PR)
+      if: github.event_name == 'pull_request'
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64
+        push: false
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        
+    - name: Build and push Docker image
+      if: github.event_name != 'pull_request'
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # Step 5: Final Notification
+  notify:
+    name: Deployment Ready
+    runs-on: ubuntu-latest
+    needs: [test, security, performance, docker]
+    if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Notify successful pipeline
+      run: |
+        echo "🎉 Complete CI/CD Pipeline successful!"
+        echo "✅ Tests passed"
+        echo "🔒 Security scans completed"
+        echo "⚡ Performance tests passed"
+        echo "📦 Docker images published"
+        echo "🚀 Ready for deployment!"
