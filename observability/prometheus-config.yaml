@@ -1,0 +1,404 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+  labels:
+    app: prometheus
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: 'keiko-production'
+        environment: 'production'
+
+    rule_files:
+      - "/etc/prometheus/rules/*.yml"
+
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+              - alertmanager:9093
+
+    scrape_configs:
+      # Prometheus selbst
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+
+      # Kubernetes API Server
+      - job_name: 'kubernetes-apiservers'
+        kubernetes_sd_configs:
+          - role: endpoints
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: default;kubernetes;https
+
+      # Kubernetes Nodes
+      - job_name: 'kubernetes-nodes'
+        kubernetes_sd_configs:
+          - role: node
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+
+      # Kubernetes Pods
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name
+
+      # Keiko API Contracts Service
+      - job_name: 'keiko-api-contracts'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - keiko
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: keep
+            regex: keiko-api-contracts
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name
+        metric_relabel_configs:
+          - source_labels: [__name__]
+            regex: 'http_request_duration_seconds.*'
+            target_label: __tmp_keep
+            replacement: 'keep'
+          - source_labels: [__name__]
+            regex: 'http_requests_total.*'
+            target_label: __tmp_keep
+            replacement: 'keep'
+          - source_labels: [__name__]
+            regex: 'api_spec_downloads_total.*'
+            target_label: __tmp_keep
+            replacement: 'keep'
+          - source_labels: [__name__]
+            regex: 'nodejs_.*'
+            target_label: __tmp_keep
+            replacement: 'keep'
+          - source_labels: [__tmp_keep]
+            regex: 'keep'
+            action: keep
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: monitoring
+  labels:
+    app: prometheus
+data:
+  keiko-api-contracts.yml: |
+    groups:
+    - name: keiko-api-contracts
+      rules:
+      # SLI: Availability
+      - record: keiko:api_contracts:availability:5m
+        expr: |
+          (
+            sum(rate(http_requests_total{job="keiko-api-contracts",code!~"5.."}[5m])) /
+            sum(rate(http_requests_total{job="keiko-api-contracts"}[5m]))
+          ) * 100
+
+      # SLI: Latency P95
+      - record: keiko:api_contracts:latency:p95:5m
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{job="keiko-api-contracts"}[5m])) by (le)
+          )
+
+      # SLI: Latency P99
+      - record: keiko:api_contracts:latency:p99:5m
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket{job="keiko-api-contracts"}[5m])) by (le)
+          )
+
+      # SLI: Error Rate
+      - record: keiko:api_contracts:error_rate:5m
+        expr: |
+          (
+            sum(rate(http_requests_total{job="keiko-api-contracts",code=~"5.."}[5m])) /
+            sum(rate(http_requests_total{job="keiko-api-contracts"}[5m]))
+          ) * 100
+
+      # SLI: Throughput
+      - record: keiko:api_contracts:throughput:5m
+        expr: |
+          sum(rate(http_requests_total{job="keiko-api-contracts"}[5m]))
+
+      # Business Metrics
+      - record: keiko:api_contracts:spec_downloads:rate:5m
+        expr: |
+          sum(rate(api_spec_downloads_total{job="keiko-api-contracts"}[5m])) by (spec_type)
+
+    - name: keiko-api-contracts-alerts
+      rules:
+      # High Error Rate Alert
+      - alert: KeikoAPIContractsHighErrorRate
+        expr: keiko:api_contracts:error_rate:5m > 5
+        for: 2m
+        labels:
+          severity: warning
+          service: keiko-api-contracts
+        annotations:
+          summary: "High error rate detected for Keiko API Contracts Service"
+          description: "Error rate is {{ $value }}% for the last 5 minutes"
+
+      # High Latency Alert
+      - alert: KeikoAPIContractsHighLatency
+        expr: keiko:api_contracts:latency:p95:5m > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          service: keiko-api-contracts
+        annotations:
+          summary: "High latency detected for Keiko API Contracts Service"
+          description: "P95 latency is {{ $value }}s for the last 5 minutes"
+
+      # Service Down Alert
+      - alert: KeikoAPIContractsDown
+        expr: up{job="keiko-api-contracts"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: keiko-api-contracts
+        annotations:
+          summary: "Keiko API Contracts Service is down"
+          description: "Service has been down for more than 1 minute"
+
+      # Low Availability Alert
+      - alert: KeikoAPIContractsLowAvailability
+        expr: keiko:api_contracts:availability:5m < 99
+        for: 5m
+        labels:
+          severity: critical
+          service: keiko-api-contracts
+        annotations:
+          summary: "Low availability for Keiko API Contracts Service"
+          description: "Availability is {{ $value }}% for the last 5 minutes"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: prometheus
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.47.0
+        args:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--storage.tsdb.path=/prometheus/'
+          - '--web.console.libraries=/etc/prometheus/console_libraries'
+          - '--web.console.templates=/etc/prometheus/consoles'
+          - '--storage.tsdb.retention.time=30d'
+          - '--web.enable-lifecycle'
+          - '--web.enable-admin-api'
+        ports:
+        - containerPort: 9090
+          name: web
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65534
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: prometheus-config
+          mountPath: /etc/prometheus/prometheus.yml
+          subPath: prometheus.yml
+        - name: prometheus-rules
+          mountPath: /etc/prometheus/rules/
+        - name: prometheus-storage
+          mountPath: /prometheus/
+        - name: tmp-volume
+          mountPath: /tmp
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: 9090
+          initialDelaySeconds: 30
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: 9090
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: prometheus-config
+        configMap:
+          name: prometheus-config
+      - name: prometheus-rules
+        configMap:
+          name: prometheus-rules
+      - name: prometheus-storage
+        persistentVolumeClaim:
+          claimName: prometheus-storage
+      - name: tmp-volume
+        emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+spec:
+  selector:
+    app: prometheus
+  ports:
+  - name: web
+    port: 9090
+    targetPort: 9090
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-storage
+  namespace: monitoring
+  labels:
+    app: prometheus
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus
+  labels:
+    app: prometheus
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/proxy
+  - services
+  - endpoints
+  - pods
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["extensions"]
+  resources:
+  - ingresses
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["/metrics"]
+  verbs: ["get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+  labels:
+    app: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: monitoring
