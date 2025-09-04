@@ -120,7 +120,7 @@ data:
         
         notification_channels:
           - "Slack: #keiko-alerts"
-          - "Email: keiko-oncall@company.com"
+          - "Email: o.scharkowski@oscharko.de"
           - "SMS: Critical alerts only"
           - "PagerDuty: 24/7 coverage"
       

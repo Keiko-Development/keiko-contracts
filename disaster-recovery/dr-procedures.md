@@ -314,8 +314,8 @@ kubectl delete pod performance-test -n keiko
 
 ### Communication Channels
 - **Slack:** #keiko-alerts, #keiko-incidents
-- **Email:** keiko-oncall@company.com
-- **Status Page:** https://status.keiko.example.com
+- **Email:** o.scharkowski@oscharko.de
+- **Status Page:** https://oscharko.de
 
 ## 📚 Additional Resources
 

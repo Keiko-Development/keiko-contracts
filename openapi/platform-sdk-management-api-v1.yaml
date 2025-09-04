@@ -14,7 +14,7 @@ info:
   version: 1.0.0
   contact:
     name: Keiko Architecture Team
-    email: architecture@keiko.dev
+    email: o.scharkowski@oscharko.de
 
 servers:
   - url: https://platform-api.keiko.dev/v1
