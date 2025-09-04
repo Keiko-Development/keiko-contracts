@@ -146,39 +146,11 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
         
-    - name: Log in to Docker Hub
-      if: ${{ github.event_name != 'pull_request' && github.repository == 'Keiko-Development/keiko-contracts' && secrets.DOCKERHUB_USERNAME != '' }}
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-        
-    - name: Extract metadata (GitHub Container Registry)
-      id: meta-ghcr
+    - name: Extract metadata
+      id: meta
       uses: docker/metadata-action@v5
       with:
         images: ghcr.io/${{ github.repository }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=sha,prefix={{branch}}-
-          type=raw,value=latest,enable={{is_default_branch}}
-          type=raw,value=develop,enable=${{ github.ref == 'refs/heads/develop' }}
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=semver,pattern={{major}}
-        labels: |
-          org.opencontainers.image.title=Keiko API Contracts Service
-          org.opencontainers.image.description=Containerized HTTP service for API contracts and specifications
-          org.opencontainers.image.vendor=Keiko Development
-          org.opencontainers.image.licenses=MIT
-          
-    - name: Extract metadata (Docker Hub)
-      id: meta-dockerhub
-      if: ${{ github.event_name != 'pull_request' && github.repository == 'Keiko-Development/keiko-contracts' && secrets.DOCKERHUB_USERNAME != '' }}
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_REPO }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
@@ -201,32 +173,20 @@ jobs:
         context: .
         platforms: linux/amd64
         push: false
-        tags: ${{ steps.meta-ghcr.outputs.tags }}
-        labels: ${{ steps.meta-ghcr.outputs.labels }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
         
-    - name: Build and push Docker image (GitHub Container Registry)
+    - name: Build and push Docker image
       if: ${{ github.event_name != 'pull_request' }}
       uses: docker/build-push-action@v5
       with:
         context: .
         platforms: linux/amd64,linux/arm64
         push: true
-        tags: ${{ steps.meta-ghcr.outputs.tags }}
-        labels: ${{ steps.meta-ghcr.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-        
-    - name: Build and push Docker image (Docker Hub)
-      if: ${{ github.event_name != 'pull_request' && github.repository == 'Keiko-Development/keiko-contracts' && secrets.DOCKERHUB_USERNAME != '' }}
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        platforms: linux/amd64,linux/arm64
-        push: true
-        tags: ${{ steps.meta-dockerhub.outputs.tags }}
-        labels: ${{ steps.meta-dockerhub.outputs.labels }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
