@@ -10,8 +10,6 @@ on:
 env:
   # Docker Hub repository name (will be: oscharko/keiko-api-contracts)
   DOCKERHUB_REPO: keiko-api-contracts
-  # GitHub Container Registry
-  GHCR_REPO: ghcr.io/${{ github.repository }}
 
 jobs:
   docker:
@@ -52,7 +50,7 @@ jobs:
       uses: docker/metadata-action@v5
       with:
         images: |
-          ${{ env.GHCR_REPO }}
+          ghcr.io/${{ github.repository }}
           ${{ github.event_name != 'pull_request' && github.repository == 'Keiko-Development/keiko-contracts' && secrets.DOCKERHUB_USERNAME && format('{0}/{1}', secrets.DOCKERHUB_USERNAME, env.DOCKERHUB_REPO) || '' }}
         tags: |
           type=ref,event=branch
@@ -107,7 +105,7 @@ jobs:
       if: github.event_name != 'pull_request'
       uses: anchore/sbom-action@v0
       with:
-        image: ${{ env.GHCR_REPO }}:${{ steps.meta.outputs.version }}
+        image: ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.version }}
         format: spdx-json
         output-file: sbom.spdx.json
         
@@ -122,7 +120,7 @@ jobs:
       if: github.event_name != 'pull_request'
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: ${{ env.GHCR_REPO }}:${{ steps.meta.outputs.version }}
+        image-ref: ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.version }}
         format: 'sarif'
         output: 'trivy-results.sarif'
         
@@ -144,7 +142,7 @@ jobs:
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       with:
-        image: ${{ env.GHCR_REPO }}:latest
+        image: ghcr.io/${{ github.repository }}:latest
         args: --severity-threshold=high
         
     - name: Upload Snyk results to GitHub Code Scanning
