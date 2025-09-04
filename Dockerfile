@@ -1,61 +1,30 @@
-# Dockerfile für keiko-api-contracts
-FROM nginx:alpine
+# Node.js-basierter API-Contracts-Service
+FROM node:18-alpine
 
-WORKDIR /usr/share/nginx/html
+WORKDIR /app
+
+# Copy package files first for better Docker layer caching
+COPY package.json ./package.json
+
+# Dependencies installieren
+RUN npm install --only=production
 
 # API-Contracts kopieren
-COPY openapi/ ./openapi/
-COPY asyncapi/ ./asyncapi/
-COPY protobuf/ ./protobuf/
-COPY schemas/ ./schemas/
-COPY versions.yaml ./
-COPY README.md ./
+COPY openapi/ ./contracts/openapi/
+COPY asyncapi/ ./contracts/asyncapi/
+COPY protobuf/ ./contracts/protobuf/
+COPY versions.yaml ./contracts/
+COPY README.md ./contracts/
 
-# Nginx-Konfiguration für API-Contracts
-COPY <<EOF /etc/nginx/conf.d/default.conf
-server {
-    listen 80;
-    server_name localhost;
-    
-    location / {
-        root /usr/share/nginx/html;
-        index README.md;
-        autoindex on;
-        autoindex_format html;
-    }
-    
-    location /openapi/ {
-        root /usr/share/nginx/html;
-        add_header Content-Type application/yaml;
-        autoindex on;
-    }
-    
-    location /asyncapi/ {
-        root /usr/share/nginx/html;
-        add_header Content-Type application/yaml;
-        autoindex on;
-    }
-    
-    location /protobuf/ {
-        root /usr/share/nginx/html;
-        add_header Content-Type text/plain;
-        autoindex on;
-    }
-    
-    location /health {
-        access_log off;
-        return 200 "healthy\n";
-        add_header Content-Type text/plain;
-    }
-}
-EOF
+# Server-Script kopieren
+COPY server.js ./server.js
 
 # Expose Port
-EXPOSE 80
+EXPOSE 3000
 
 # Health Check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
-# Start Nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start Server
+CMD ["npm", "start"]
