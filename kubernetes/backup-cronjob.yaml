@@ -1,0 +1,220 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: keiko-api-contracts-backup
+  namespace: keiko
+  labels:
+    app: keiko-api-contracts
+    component: backup
+spec:
+  # Täglich um 2:00 Uhr UTC
+  schedule: "0 2 * * *"
+  
+  # Behalte die letzten 3 erfolgreichen Jobs
+  successfulJobsHistoryLimit: 3
+  
+  # Behalte den letzten fehlgeschlagenen Job
+  failedJobsHistoryLimit: 1
+  
+  # Verhindere überlappende Jobs
+  concurrencyPolicy: Forbid
+  
+  jobTemplate:
+    spec:
+      # Job-Timeout: 30 Minuten
+      activeDeadlineSeconds: 1800
+      
+      template:
+        metadata:
+          labels:
+            app: keiko-api-contracts
+            component: backup
+        spec:
+          restartPolicy: OnFailure
+          
+          serviceAccountName: keiko-api-contracts-backup-sa
+          
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+          
+          containers:
+          - name: backup
+            image: alpine/git:latest
+            
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              runAsNonRoot: true
+              runAsUser: 1000
+              runAsGroup: 1000
+              capabilities:
+                drop:
+                - ALL
+            
+            env:
+            - name: BACKUP_TIMESTAMP
+              value: "$(date +%Y%m%d_%H%M%S)"
+            - name: GIT_BACKUP_REMOTE
+              valueFrom:
+                secretRef:
+                  name: backup-config
+                  key: git-remote
+                  optional: true
+            
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -euo pipefail
+              
+              echo "🔄 Starte automatisches Backup..."
+              
+              # Erstelle Backup-Verzeichnis
+              BACKUP_DIR="/backup/$(date +%Y%m%d_%H%M%S)"
+              mkdir -p "$BACKUP_DIR"
+              
+              # Git-Repository klonen (falls Remote verfügbar)
+              if [ -n "${GIT_BACKUP_REMOTE:-}" ]; then
+                echo "📥 Klone Repository..."
+                git clone "$GIT_BACKUP_REMOTE" /tmp/repo
+                cd /tmp/repo
+                
+                # Erstelle Bundle-Backup
+                git bundle create "$BACKUP_DIR/contracts-repo.bundle" --all
+                
+                # Kopiere wichtige Dateien
+                cp -r openapi/ "$BACKUP_DIR/" 2>/dev/null || true
+                cp -r asyncapi/ "$BACKUP_DIR/" 2>/dev/null || true
+                cp -r protobuf/ "$BACKUP_DIR/" 2>/dev/null || true
+                cp versions.yaml "$BACKUP_DIR/" 2>/dev/null || true
+                cp README.md "$BACKUP_DIR/" 2>/dev/null || true
+              fi
+              
+              # Kubernetes-Ressourcen sichern
+              echo "☸️ Sichere Kubernetes-Ressourcen..."
+              kubectl get deployment keiko-api-contracts-deployment -n keiko -o yaml > "$BACKUP_DIR/deployment.yaml" 2>/dev/null || true
+              kubectl get service keiko-api-contracts-service -n keiko -o yaml > "$BACKUP_DIR/service.yaml" 2>/dev/null || true
+              kubectl get ingress keiko-api-contracts-ingress -n keiko -o yaml > "$BACKUP_DIR/ingress.yaml" 2>/dev/null || true
+              kubectl get certificates -n keiko -o yaml > "$BACKUP_DIR/certificates.yaml" 2>/dev/null || true
+              
+              # Backup-Metadaten erstellen
+              cat > "$BACKUP_DIR/backup-metadata.json" << EOF
+              {
+                "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+                "backup_type": "automated",
+                "kubernetes_namespace": "keiko",
+                "backup_size": "$(du -sh $BACKUP_DIR | cut -f1)"
+              }
+              EOF
+              
+              # Backup-Summary
+              echo "📋 Backup-Summary:"
+              echo "   Zeitstempel: $(date)"
+              echo "   Backup-Pfad: $BACKUP_DIR"
+              echo "   Größe: $(du -sh $BACKUP_DIR | cut -f1)"
+              
+              # Alte Backups rotieren (behalte 7 Tage)
+              echo "🔄 Rotiere alte Backups..."
+              find /backup -type d -name "20*" -mtime +7 -exec rm -rf {} \; 2>/dev/null || true
+              
+              echo "✅ Backup erfolgreich abgeschlossen"
+            
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /backup
+            - name: tmp-volume
+              mountPath: /tmp
+            
+            resources:
+              requests:
+                memory: "64Mi"
+                cpu: "50m"
+              limits:
+                memory: "128Mi"
+                cpu: "100m"
+          
+          volumes:
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: backup-storage-pvc
+          - name: tmp-volume
+            emptyDir: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backup-storage-pvc
+  namespace: keiko
+  labels:
+    app: keiko-api-contracts
+    component: backup
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: keiko-api-contracts-backup-sa
+  namespace: keiko
+  labels:
+    app: keiko-api-contracts
+    component: backup
+automountServiceAccountToken: true
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: keiko-api-contracts-backup-role
+  namespace: keiko
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps", "secrets"]
+  verbs: ["get", "list"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list"]
+- apiGroups: ["cert-manager.io"]
+  resources: ["certificates"]
+  verbs: ["get", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: keiko-api-contracts-backup-binding
+  namespace: keiko
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: keiko-api-contracts-backup-role
+subjects:
+- kind: ServiceAccount
+  name: keiko-api-contracts-backup-sa
+  namespace: keiko
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backup-config
+  namespace: keiko
+  labels:
+    app: keiko-api-contracts
+    component: backup
+type: Opaque
+stringData:
+  git-remote: ""  # Optional: Git-Remote-URL für Repository-Backups
