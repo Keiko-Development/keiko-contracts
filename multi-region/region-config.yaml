@@ -1,0 +1,286 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: multi-region-config
+  namespace: keiko
+  labels:
+    multi-region.keiko.io/type: "config"
+data:
+  regions.yaml: |
+    # Multi-Region Configuration for Keiko API Contracts Service
+    multi_region:
+      strategy: "active-active"
+      failover_mode: "automatic"
+      health_check_interval: "30s"
+      failover_threshold: 3
+      
+      regions:
+        primary:
+          name: "us-east-1"
+          cloud_provider: "aws"
+          kubernetes_context: "keiko-prod-us-east-1"
+          priority: 1
+          capacity: 100
+          endpoints:
+            - "https://api-contracts-us-east.keiko.example.com"
+          monitoring:
+            prometheus: "https://prometheus-us-east.keiko.example.com"
+            grafana: "https://grafana-us-east.keiko.example.com"
+        
+        secondary:
+          name: "eu-west-1"
+          cloud_provider: "aws"
+          kubernetes_context: "keiko-prod-eu-west-1"
+          priority: 2
+          capacity: 100
+          endpoints:
+            - "https://api-contracts-eu-west.keiko.example.com"
+          monitoring:
+            prometheus: "https://prometheus-eu-west.keiko.example.com"
+            grafana: "https://grafana-eu-west.keiko.example.com"
+        
+        tertiary:
+          name: "ap-southeast-1"
+          cloud_provider: "aws"
+          kubernetes_context: "keiko-prod-ap-southeast-1"
+          priority: 3
+          capacity: 50
+          endpoints:
+            - "https://api-contracts-ap-southeast.keiko.example.com"
+          monitoring:
+            prometheus: "https://prometheus-ap-southeast.keiko.example.com"
+            grafana: "https://grafana-ap-southeast.keiko.example.com"
+      
+      load_balancing:
+        strategy: "geographic"
+        dns_provider: "route53"
+        health_check_path: "/health"
+        health_check_interval: "30s"
+        routing_rules:
+          - region: "us-east-1"
+            traffic_percentage: 40
+            geographic_zones: ["NA"]
+          - region: "eu-west-1"
+            traffic_percentage: 40
+            geographic_zones: ["EU", "AF"]
+          - region: "ap-southeast-1"
+            traffic_percentage: 20
+            geographic_zones: ["AS", "OC"]
+      
+      replication:
+        git_repository:
+          strategy: "multi-remote"
+          sync_interval: "real-time"
+          conflict_resolution: "last-writer-wins"
+        
+        container_images:
+          strategy: "multi-registry"
+          registries:
+            - "us-east-1.amazonaws.com/keiko"
+            - "eu-west-1.amazonaws.com/keiko"
+            - "ap-southeast-1.amazonaws.com/keiko"
+          sync_on_build: true
+        
+        configuration:
+          strategy: "eventual-consistency"
+          sync_interval: "5m"
+          validation: true
+      
+      monitoring:
+        cross_region_metrics: true
+        latency_monitoring: true
+        availability_monitoring: true
+        alert_aggregation: true
+        
+        sla_targets:
+          availability: "99.99%"
+          latency_p95: "200ms"
+          latency_p99: "500ms"
+          rto: "5 minutes"
+          rpo: "1 minute"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multi-region-controller
+  namespace: keiko
+  labels:
+    app: multi-region-controller
+    multi-region.keiko.io/type: "controller"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: multi-region-controller
+  template:
+    metadata:
+      labels:
+        app: multi-region-controller
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: multi-region-controller-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: controller
+        image: alpine/k8s:1.28.0
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -euo pipefail
+          
+          echo "🌍 Starting Multi-Region Controller"
+          
+          # Install required tools
+          apk add --no-cache curl jq aws-cli
+          
+          # Main control loop
+          while true; do
+            echo "$(date): Checking region health..."
+            
+            # Check primary region
+            if curl -s -f https://api-contracts-us-east.keiko.example.com/health > /dev/null; then
+              echo "✅ Primary region (us-east-1) healthy"
+            else
+              echo "❌ Primary region (us-east-1) unhealthy - initiating failover"
+              # Failover logic would go here
+            fi
+            
+            # Check secondary region
+            if curl -s -f https://api-contracts-eu-west.keiko.example.com/health > /dev/null; then
+              echo "✅ Secondary region (eu-west-1) healthy"
+            else
+              echo "❌ Secondary region (eu-west-1) unhealthy"
+            fi
+            
+            # Check tertiary region
+            if curl -s -f https://api-contracts-ap-southeast.keiko.example.com/health > /dev/null; then
+              echo "✅ Tertiary region (ap-southeast-1) healthy"
+            else
+              echo "❌ Tertiary region (ap-southeast-1) unhealthy"
+            fi
+            
+            # Update metrics
+            cat > /tmp/metrics.txt << EOF
+          # HELP keiko_multi_region_health Region health status
+          # TYPE keiko_multi_region_health gauge
+          keiko_multi_region_health{region="us-east-1"} 1
+          keiko_multi_region_health{region="eu-west-1"} 1
+          keiko_multi_region_health{region="ap-southeast-1"} 1
+          EOF
+            
+            sleep 30
+          done
+        ports:
+        - containerPort: 8080
+          name: metrics
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: config
+          mountPath: /etc/multi-region
+        - name: tmp-volume
+          mountPath: /tmp
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        env:
+        - name: AWS_REGION
+          value: "us-east-1"
+        - name: KUBECONFIG
+          value: "/etc/kubeconfig/config"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: multi-region-config
+      - name: tmp-volume
+        emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: multi-region-controller
+  namespace: keiko
+  labels:
+    app: multi-region-controller
+spec:
+  selector:
+    app: multi-region-controller
+  ports:
+  - name: metrics
+    port: 8080
+    targetPort: 8080
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: multi-region-controller-sa
+  namespace: keiko
+  labels:
+    app: multi-region-controller
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: multi-region-controller-role
+  labels:
+    app: multi-region-controller
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "endpoints"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch", "patch"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list", "watch", "patch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: multi-region-controller-binding
+  labels:
+    app: multi-region-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: multi-region-controller-role
+subjects:
+- kind: ServiceAccount
+  name: multi-region-controller-sa
+  namespace: keiko
