@@ -166,9 +166,15 @@ describe('OpenAPI Specification Validation', () => {
             
             // All path parameters in template should be defined
             pathParams.forEach(pathParam => {
-              const isDefined = pathParamDefs.some(def => 
-                def.name === pathParam || (def.$ref && def.$ref.includes(pathParam))
-              );
+              const isDefined = pathParamDefs.some(def => {
+                if (def.name === pathParam) return true;
+                if (def.$ref) {
+                  // Extract component name from $ref like '#/components/parameters/AgentId'
+                  const refName = def.$ref.split('/').pop();
+                  return refName && refName.toLowerCase() === pathParam.toLowerCase();
+                }
+                return false;
+              });
               expect(isDefined).toBe(true);
             });
             
