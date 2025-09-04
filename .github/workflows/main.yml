@@ -43,7 +43,7 @@ jobs:
         # Fail if coverage is below thresholds (Jest will handle this automatically with coverageThreshold config)
       
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         file: ./coverage/lcov.info
         flags: unittests
