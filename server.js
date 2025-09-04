@@ -478,7 +478,7 @@ app.get('/specs', (req, res) => {
 });
 
 // Error handling middleware
-app.use((error, req, res, next) => {
+app.use((error, req, res, _next) => {
   logger.error('Unhandled error', {
     correlationId: req.correlationId,
     error: error.message,
