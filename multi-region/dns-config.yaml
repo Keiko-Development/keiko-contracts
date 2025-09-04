@@ -1,0 +1,296 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dns-config
+  namespace: keiko
+  labels:
+    multi-region.keiko.io/type: "dns"
+data:
+  route53-config.yaml: |
+    # AWS Route53 Configuration for Multi-Region Setup
+    dns_configuration:
+      domain: "keiko.example.com"
+      subdomain: "api-contracts"
+      ttl: 60
+      
+      health_checks:
+        - name: "us-east-1-health"
+          endpoint: "https://api-contracts-us-east.keiko.example.com/health"
+          type: "HTTPS"
+          port: 443
+          path: "/health"
+          interval: 30
+          failure_threshold: 3
+          regions: ["us-east-1", "eu-west-1", "ap-southeast-1"]
+        
+        - name: "eu-west-1-health"
+          endpoint: "https://api-contracts-eu-west.keiko.example.com/health"
+          type: "HTTPS"
+          port: 443
+          path: "/health"
+          interval: 30
+          failure_threshold: 3
+          regions: ["us-east-1", "eu-west-1", "ap-southeast-1"]
+        
+        - name: "ap-southeast-1-health"
+          endpoint: "https://api-contracts-ap-southeast.keiko.example.com/health"
+          type: "HTTPS"
+          port: 443
+          path: "/health"
+          interval: 30
+          failure_threshold: 3
+          regions: ["us-east-1", "eu-west-1", "ap-southeast-1"]
+      
+      records:
+        # Primary global endpoint with failover
+        - name: "api-contracts.keiko.example.com"
+          type: "A"
+          routing_policy: "failover"
+          records:
+            - value: "us-east-1-lb-ip"
+              set_identifier: "primary"
+              failover: "PRIMARY"
+              health_check: "us-east-1-health"
+            - value: "eu-west-1-lb-ip"
+              set_identifier: "secondary"
+              failover: "SECONDARY"
+              health_check: "eu-west-1-health"
+        
+        # Geographic routing for optimal performance
+        - name: "api-contracts-geo.keiko.example.com"
+          type: "A"
+          routing_policy: "geolocation"
+          records:
+            - value: "us-east-1-lb-ip"
+              set_identifier: "north-america"
+              continent: "NA"
+              health_check: "us-east-1-health"
+            - value: "eu-west-1-lb-ip"
+              set_identifier: "europe"
+              continent: "EU"
+              health_check: "eu-west-1-health"
+            - value: "eu-west-1-lb-ip"
+              set_identifier: "africa"
+              continent: "AF"
+              health_check: "eu-west-1-health"
+            - value: "ap-southeast-1-lb-ip"
+              set_identifier: "asia"
+              continent: "AS"
+              health_check: "ap-southeast-1-health"
+            - value: "ap-southeast-1-lb-ip"
+              set_identifier: "oceania"
+              continent: "OC"
+              health_check: "ap-southeast-1-health"
+            - value: "us-east-1-lb-ip"
+              set_identifier: "default"
+              country: "*"
+              health_check: "us-east-1-health"
+        
+        # Weighted routing for load distribution
+        - name: "api-contracts-weighted.keiko.example.com"
+          type: "A"
+          routing_policy: "weighted"
+          records:
+            - value: "us-east-1-lb-ip"
+              set_identifier: "us-east-40"
+              weight: 40
+              health_check: "us-east-1-health"
+            - value: "eu-west-1-lb-ip"
+              set_identifier: "eu-west-40"
+              weight: 40
+              health_check: "eu-west-1-health"
+            - value: "ap-southeast-1-lb-ip"
+              set_identifier: "ap-southeast-20"
+              weight: 20
+              health_check: "ap-southeast-1-health"
+        
+        # Regional specific endpoints
+        - name: "api-contracts-us-east.keiko.example.com"
+          type: "A"
+          routing_policy: "simple"
+          records:
+            - value: "us-east-1-lb-ip"
+        
+        - name: "api-contracts-eu-west.keiko.example.com"
+          type: "A"
+          routing_policy: "simple"
+          records:
+            - value: "eu-west-1-lb-ip"
+        
+        - name: "api-contracts-ap-southeast.keiko.example.com"
+          type: "A"
+          routing_policy: "simple"
+          records:
+            - value: "ap-southeast-1-lb-ip"
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: dns-health-monitor
+  namespace: keiko
+  labels:
+    multi-region.keiko.io/type: "monitor"
+spec:
+  schedule: "*/5 * * * *"  # Alle 5 Minuten
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            multi-region.keiko.io/type: "monitor"
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: dns-monitor-sa
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
+          containers:
+          - name: dns-monitor
+            image: alpine:3.18
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -euo pipefail
+              
+              echo "🌐 DNS Health Monitor - $(date)"
+              
+              # Install required tools
+              apk add --no-cache curl jq dig
+              
+              # Test DNS resolution
+              echo "Testing DNS resolution..."
+              
+              # Test primary endpoint
+              if dig +short api-contracts.keiko.example.com | grep -q .; then
+                echo "✅ Primary DNS resolution working"
+              else
+                echo "❌ Primary DNS resolution failed"
+              fi
+              
+              # Test geographic endpoint
+              if dig +short api-contracts-geo.keiko.example.com | grep -q .; then
+                echo "✅ Geographic DNS resolution working"
+              else
+                echo "❌ Geographic DNS resolution failed"
+              fi
+              
+              # Test regional endpoints
+              REGIONS=("us-east" "eu-west" "ap-southeast")
+              for region in "${REGIONS[@]}"; do
+                endpoint="api-contracts-${region}.keiko.example.com"
+                if dig +short "$endpoint" | grep -q .; then
+                  echo "✅ $region DNS resolution working"
+                  
+                  # Test HTTP health
+                  if curl -s -f "https://$endpoint/health" > /dev/null; then
+                    echo "✅ $region HTTP health check passed"
+                  else
+                    echo "❌ $region HTTP health check failed"
+                  fi
+                else
+                  echo "❌ $region DNS resolution failed"
+                fi
+              done
+              
+              # Test latency from different regions
+              echo "Testing latency..."
+              for region in "${REGIONS[@]}"; do
+                endpoint="api-contracts-${region}.keiko.example.com"
+                latency=$(curl -s -w "%{time_total}" -o /dev/null "https://$endpoint/health" || echo "999")
+                echo "🕐 $region latency: ${latency}s"
+              done
+              
+              echo "DNS health monitoring completed"
+              
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              runAsNonRoot: true
+              runAsUser: 1000
+              capabilities:
+                drop:
+                - ALL
+            volumeMounts:
+            - name: tmp-volume
+              mountPath: /tmp
+            resources:
+              requests:
+                memory: "64Mi"
+                cpu: "50m"
+              limits:
+                memory: "128Mi"
+                cpu: "100m"
+          volumes:
+          - name: tmp-volume
+            emptyDir: {}
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dns-monitor-sa
+  namespace: keiko
+  labels:
+    multi-region.keiko.io/type: "monitor"
+
+---
+# External DNS Configuration for automatic DNS management
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: external-dns-config
+  namespace: keiko
+  labels:
+    multi-region.keiko.io/type: "external-dns"
+data:
+  external-dns.yaml: |
+    # External DNS configuration for automatic Route53 management
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: external-dns
+      namespace: kube-system
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: external-dns
+      template:
+        metadata:
+          labels:
+            app: external-dns
+        spec:
+          serviceAccountName: external-dns
+          containers:
+          - name: external-dns
+            image: k8s.gcr.io/external-dns/external-dns:v0.13.6
+            args:
+            - --source=ingress
+            - --source=service
+            - --domain-filter=keiko.example.com
+            - --provider=aws
+            - --aws-zone-type=public
+            - --registry=txt
+            - --txt-owner-id=keiko-multi-region
+            - --log-level=info
+            env:
+            - name: AWS_DEFAULT_REGION
+              value: us-east-1
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 65534
+              capabilities:
+                drop:
+                - ALL
+            resources:
+              requests:
+                memory: "64Mi"
+                cpu: "50m"
+              limits:
+                memory: "128Mi"
+                cpu: "100m"
