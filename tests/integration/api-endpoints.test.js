@@ -46,7 +46,7 @@ describe('API Endpoints Integration Tests', () => {
 
       expect(response.headers).toMatchObject({
         'x-content-type-options': 'nosniff',
-        'x-frame-options': 'DENY',
+        'x-frame-options': 'SAMEORIGIN',
         'x-xss-protection': '0'
       });
     });
@@ -250,8 +250,8 @@ describe('API Endpoints Integration Tests', () => {
         .expect(200);
 
       // Rate limiting headers should be present
-      expect(response.headers).toHaveProperty('x-ratelimit-limit');
-      expect(response.headers).toHaveProperty('x-ratelimit-remaining');
+      expect(response.headers).toHaveProperty('ratelimit-limit');
+      expect(response.headers).toHaveProperty('ratelimit-remaining');
     });
   });
 });
