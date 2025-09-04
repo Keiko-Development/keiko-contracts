@@ -1,0 +1,105 @@
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: keiko-api-contracts-psp
+  namespace: keiko
+spec:
+  # Verhindert privilegierte Container
+  privileged: false
+  
+  # Verhindert Host-Namespace-Zugriff
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  
+  # Verhindert Host-Port-Zugriff
+  hostPorts:
+  - min: 0
+    max: 0
+  
+  # Erlaubt nur bestimmte Volume-Typen
+  volumes:
+  - 'configMap'
+  - 'emptyDir'
+  - 'projected'
+  - 'secret'
+  - 'downwardAPI'
+  - 'persistentVolumeClaim'
+  
+  # Verhindert Root-User
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  
+  # Verhindert Root-Gruppe
+  runAsGroup:
+    rule: 'MustRunAs'
+    ranges:
+    - min: 1000
+      max: 65535
+  
+  # Verhindert privilegierte Eskalation
+  allowPrivilegeEscalation: false
+  
+  # Setzt Security Context
+  requiredDropCapabilities:
+  - ALL
+  
+  # Verhindert unsichere Syscalls
+  forbiddenSysctls:
+  - '*'
+  
+  # SELinux-Konfiguration
+  seLinux:
+    rule: 'RunAsAny'
+  
+  # Supplemental Groups
+  supplementalGroups:
+    rule: 'MustRunAs'
+    ranges:
+    - min: 1000
+      max: 65535
+  
+  # FSGroup
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+    - min: 1000
+      max: 65535
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: keiko-api-contracts-psp-role
+  namespace: keiko
+rules:
+- apiGroups: ['policy']
+  resources: ['podsecuritypolicies']
+  verbs: ['use']
+  resourceNames:
+  - keiko-api-contracts-psp
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: keiko-api-contracts-psp-binding
+  namespace: keiko
+roleRef:
+  kind: Role
+  name: keiko-api-contracts-psp-role
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: keiko-api-contracts-sa
+  namespace: keiko
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: keiko-api-contracts-sa
+  namespace: keiko
+  labels:
+    app: keiko-api-contracts
+automountServiceAccountToken: false
