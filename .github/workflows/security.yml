@@ -1,0 +1,156 @@
+name: Security Scanning
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  dependency-scan:
+    name: Dependency Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Install dependencies
+      run: |
+        echo '{ 
+          "name": "keiko-api-contracts-service", 
+          "version": "1.0.0", 
+          "dependencies": { 
+            "express": "^4.18.2", 
+            "cors": "^2.8.5", 
+            "js-yaml": "^4.1.0", 
+            "helmet": "^7.1.0", 
+            "winston": "^3.11.0", 
+            "express-rate-limit": "^7.1.5", 
+            "prom-client": "^15.1.0", 
+            "uuid": "^9.0.1" 
+          } 
+        }' > package.json
+        npm install
+        
+    - name: Run Snyk to check for vulnerabilities
+      uses: snyk/actions/node@master
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: --severity-threshold=high
+        
+    - name: Upload Snyk results to GitHub Code Scanning
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: snyk.sarif
+
+  container-scan:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Build Docker image
+      run: docker build -t keiko-api-contracts:${{ github.sha }} .
+      
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'keiko-api-contracts:${{ github.sha }}'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  api-security-scan:
+    name: API Security Testing
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Build and start service
+      run: |
+        docker build -t keiko-api-contracts:test .
+        docker run -d -p 3000:3000 --name api-test keiko-api-contracts:test
+        sleep 10
+        
+    - name: Wait for service to be ready
+      run: |
+        timeout 60 bash -c 'until curl -f http://localhost:3000/health; do sleep 2; done'
+        
+    - name: Run OWASP ZAP API scan
+      uses: zaproxy/action-api-scan@v0.7.0
+      with:
+        target: 'http://localhost:3000'
+        format: openapi
+        api_spec: 'http://localhost:3000/frontend/openapi.json'
+        cmd_options: '-a'
+        
+    - name: Stop test container
+      if: always()
+      run: docker rm -f api-test
+
+  secrets-scan:
+    name: Secrets Detection
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run GitLeaks
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  compliance-check:
+    name: Compliance and Policy Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Check Dockerfile best practices
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: Dockerfile
+        format: sarif
+        output-file: hadolint-results.sarif
+        no-fail: true
+        
+    - name: Upload Hadolint results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: hadolint-results.sarif
+        
+    - name: Kubernetes security scan
+      run: |
+        # Install kubesec
+        wget https://github.com/controlplaneio/kubesec/releases/latest/download/kubesec_linux_amd64.tar.gz
+        tar -xzf kubesec_linux_amd64.tar.gz
+        
+        # Scan Kubernetes manifests
+        for file in kubernetes/*.yaml; do
+          echo "Scanning $file"
+          ./kubesec scan "$file" || echo "Warning: $file failed security scan"
+        done
