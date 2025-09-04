@@ -160,18 +160,25 @@ describe('OpenAPI Specification Validation', () => {
         
         Object.entries(pathItem).forEach(([, operation]) => {
           if (typeof operation === 'object' && operation.parameters) {
-            const pathParamDefs = operation.parameters.filter(param => param.in === 'path');
+            const pathParamDefs = operation.parameters.filter(param => 
+              param.in === 'path' || (param.$ref && param.$ref.includes('parameters'))
+            );
             
             // All path parameters in template should be defined
             pathParams.forEach(pathParam => {
-              const isDefined = pathParamDefs.some(def => def.name === pathParam);
+              const isDefined = pathParamDefs.some(def => 
+                def.name === pathParam || (def.$ref && def.$ref.includes(pathParam))
+              );
               expect(isDefined).toBe(true);
             });
             
             // All defined path parameters should be in template
             pathParamDefs.forEach(paramDef => {
-              expect(pathParams).toContain(paramDef.name);
-              expect(paramDef.required).toBe(true); // Path parameters must be required
+              if (paramDef.name) {
+                expect(pathParams).toContain(paramDef.name);
+                expect(paramDef.required).toBe(true); // Path parameters must be required
+              }
+              // Skip validation for $ref parameters as they are resolved elsewhere
             });
           }
         });

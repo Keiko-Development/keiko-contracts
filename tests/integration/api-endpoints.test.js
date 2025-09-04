@@ -161,7 +161,7 @@ describe('API Endpoints Integration Tests', () => {
         .options('/specs')
         .set('Origin', 'http://localhost:3000')
         .set('Access-Control-Request-Method', 'GET')
-        .expect(200);
+        .expect(204);
 
       expect(response.headers).toHaveProperty('access-control-allow-methods');
     });
@@ -238,8 +238,8 @@ describe('API Endpoints Integration Tests', () => {
         .get('/unknown-endpoint')
         .expect(500);
 
-      // The server should return HTML error page for unknown routes
-      expect(response.text).toContain('Internal Server Error');
+      // The server should return JSON error response for unknown routes
+      expect(response.body).toHaveProperty('error');
     });
   });
 

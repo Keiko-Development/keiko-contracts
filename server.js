@@ -478,7 +478,7 @@ app.get('/specs', (req, res) => {
 });
 
 // Error handling middleware
-app.use((error, req, res) => {
+app.use((error, req, res, next) => {
   logger.error('Unhandled error', {
     correlationId: req.correlationId,
     error: error.message,
@@ -488,7 +488,8 @@ app.use((error, req, res) => {
   });
 
   res.status(500).json({
-    error: 'Internal server error',
+    error: 'Internal Server Error',
+    message: 'An internal server error occurred',
     correlationId: req.correlationId
   });
 });
