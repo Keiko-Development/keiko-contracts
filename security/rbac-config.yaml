@@ -1,0 +1,288 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: keiko-security
+  labels:
+    name: keiko-security
+    security.keiko.io/level: "high"
+
+---
+# Service Account für Keiko API Contracts mit minimalen Rechten
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: keiko-api-contracts-sa
+  namespace: keiko
+  labels:
+    app: keiko-api-contracts
+    security.keiko.io/role: "service"
+automountServiceAccountToken: true
+
+---
+# Role für API Contracts Service (minimale Rechte)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: keiko-api-contracts-role
+  namespace: keiko
+rules:
+# Nur Lese-Zugriff auf eigene ConfigMaps
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list"]
+  resourceNames: ["keiko-api-contracts-config"]
+# Nur Lese-Zugriff auf eigene Secrets
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get"]
+  resourceNames: ["keiko-api-contracts-secrets"]
+# Health Check Zugriff
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get"]
+  resourceNames: ["keiko-api-contracts-*"]
+
+---
+# RoleBinding für API Contracts Service
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: keiko-api-contracts-binding
+  namespace: keiko
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: keiko-api-contracts-role
+subjects:
+- kind: ServiceAccount
+  name: keiko-api-contracts-sa
+  namespace: keiko
+
+---
+# ClusterRole für Monitoring (nur für Prometheus)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: keiko-monitoring-reader
+  labels:
+    security.keiko.io/role: "monitoring"
+rules:
+- apiGroups: [""]
+  resources: ["nodes", "nodes/proxy", "services", "endpoints", "pods"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["extensions", "networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["/metrics"]
+  verbs: ["get"]
+
+---
+# Service Account für Monitoring
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: keiko-monitoring-sa
+  namespace: monitoring
+  labels:
+    app: prometheus
+    security.keiko.io/role: "monitoring"
+
+---
+# ClusterRoleBinding für Monitoring
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: keiko-monitoring-binding
+  labels:
+    security.keiko.io/role: "monitoring"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: keiko-monitoring-reader
+subjects:
+- kind: ServiceAccount
+  name: keiko-monitoring-sa
+  namespace: monitoring
+
+---
+# Role für Backup Operations
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: keiko-backup-role
+  namespace: keiko
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps", "secrets"]
+  verbs: ["get", "list"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list"]
+- apiGroups: ["cert-manager.io"]
+  resources: ["certificates"]
+  verbs: ["get", "list"]
+
+---
+# Service Account für Backup
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: keiko-backup-sa
+  namespace: keiko
+  labels:
+    app: keiko-backup
+    security.keiko.io/role: "backup"
+
+---
+# RoleBinding für Backup
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: keiko-backup-binding
+  namespace: keiko
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: keiko-backup-role
+subjects:
+- kind: ServiceAccount
+  name: keiko-backup-sa
+  namespace: keiko
+
+---
+# Security Policy für alle Keiko Services
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: keiko-restricted-psp
+  labels:
+    security.keiko.io/level: "restricted"
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  supplementalGroups:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1000
+        max: 65535
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1000
+        max: 65535
+  seLinux:
+    rule: 'RunAsAny'
+
+---
+# ClusterRole für PSP
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: keiko-psp-user
+  labels:
+    security.keiko.io/level: "restricted"
+rules:
+- apiGroups: ['policy']
+  resources: ['podsecuritypolicies']
+  verbs: ['use']
+  resourceNames:
+  - keiko-restricted-psp
+
+---
+# ClusterRoleBinding für PSP
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: keiko-psp-binding
+  labels:
+    security.keiko.io/level: "restricted"
+roleRef:
+  kind: ClusterRole
+  name: keiko-psp-user
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: keiko-api-contracts-sa
+  namespace: keiko
+- kind: ServiceAccount
+  name: keiko-backup-sa
+  namespace: keiko
+
+---
+# Network Policy für Keiko Namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: keiko-default-deny
+  namespace: keiko
+  labels:
+    security.keiko.io/level: "high"
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+
+---
+# Network Policy für API Contracts Service
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: keiko-api-contracts-netpol
+  namespace: keiko
+  labels:
+    security.keiko.io/level: "high"
+spec:
+  podSelector:
+    matchLabels:
+      app: keiko-api-contracts
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Erlaubt Traffic vom Ingress Controller
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 3000
+  # Erlaubt Monitoring Traffic
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 3000
+  egress:
+  # DNS
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # HTTPS für externe APIs
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
