@@ -118,7 +118,7 @@ jobs:
         docker stop perf-container
         docker rm perf-container
         
-        # Fail if response time > 1 second (using awk instead of bc)
+        # Fail if response time > 1 second (using awk)
         if awk -v rt="$response_time" 'BEGIN {exit !(rt > 1.0)}'; then
           echo "Performance test failed: Response time too high"
           exit 1
@@ -149,21 +149,12 @@ jobs:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Log in to Docker Hub
-      if: ${{ github.event_name != 'pull_request' && github.repository == 'Keiko-Development/keiko-contracts' && secrets.DOCKERHUB_USERNAME }}
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-
+        
     - name: Extract metadata
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: |
-          ghcr.io/${{ github.repository }}
-          ${{ github.event_name != 'pull_request' && github.repository == 'Keiko-Development/keiko-contracts' && secrets.DOCKERHUB_USERNAME && format('{0}/{1}', secrets.DOCKERHUB_USERNAME, env.DOCKERHUB_REPO) || '' }}
+        images: ghcr.io/${{ github.repository }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
