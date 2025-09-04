@@ -119,7 +119,7 @@ jobs:
         docker rm perf-container
         
         # Fail if response time > 1 second (using awk instead of bc)
-        if awk "BEGIN {exit !($response_time > 1.0)}"; then
+        if awk -v rt="$response_time" 'BEGIN {exit !(rt > 1.0)}'; then
           echo "Performance test failed: Response time too high"
           exit 1
         fi
