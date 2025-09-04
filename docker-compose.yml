@@ -3,10 +3,10 @@ version: '3.8'
 services:
   keiko-api-contracts:
     # Verwende das veröffentlichte Image von GitHub Container Registry
-    image: ghcr.io/keiko-development/keiko-contracts:latest
+    # image: ghcr.io/keiko-development/keiko-contracts:latest
     
     # Alternativ: Verwende Docker Hub Image
-    # image: oscharko/keiko-api-contracts:latest
+    image: oscharko/keiko-api-contracts:latest
     
     # Oder baue lokal (für Entwicklung)
     # build: .
