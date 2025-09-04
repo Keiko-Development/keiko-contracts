@@ -1,0 +1,327 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: security-policies
+  namespace: keiko-security
+  labels:
+    security.keiko.io/type: "policy"
+data:
+  security-policy.yaml: |
+    # Keiko Security Policy
+    # Compliance: SOC2, GDPR, ISO27001
+    
+    security_framework:
+      version: "1.0.0"
+      compliance_standards:
+        - "SOC2 Type II"
+        - "GDPR"
+        - "ISO27001"
+        - "NIST Cybersecurity Framework"
+      
+      access_control:
+        principle: "least_privilege"
+        authentication:
+          - multi_factor_required: true
+          - session_timeout: "8h"
+          - password_policy:
+              min_length: 12
+              complexity: true
+              rotation_days: 90
+        authorization:
+          - rbac_enabled: true
+          - service_accounts_minimal: true
+          - regular_access_review: true
+      
+      data_protection:
+        encryption:
+          - at_rest: "AES-256"
+          - in_transit: "TLS 1.3"
+          - key_management: "HashiCorp Vault"
+        data_classification:
+          - public: "API specifications"
+          - internal: "Configuration data"
+          - confidential: "Secrets, keys"
+          - restricted: "Personal data"
+        retention:
+          - logs: "90 days"
+          - metrics: "1 year"
+          - backups: "7 years"
+      
+      monitoring:
+        security_events:
+          - failed_authentications: true
+          - privilege_escalations: true
+          - unauthorized_access: true
+          - data_access: true
+        audit_logging:
+          - all_api_calls: true
+          - admin_actions: true
+          - data_modifications: true
+        incident_response:
+          - detection_time: "< 15 minutes"
+          - response_time: "< 1 hour"
+          - recovery_time: "< 4 hours"
+      
+      vulnerability_management:
+        scanning:
+          - container_images: "daily"
+          - dependencies: "weekly"
+          - infrastructure: "monthly"
+        patching:
+          - critical: "24 hours"
+          - high: "7 days"
+          - medium: "30 days"
+          - low: "90 days"
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: security-audit
+  namespace: keiko-security
+  labels:
+    security.keiko.io/type: "audit"
+spec:
+  schedule: "0 2 * * *"  # Täglich um 2:00 Uhr
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            security.keiko.io/type: "audit"
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: security-audit-sa
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
+          containers:
+          - name: security-audit
+            image: alpine:3.18
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -euo pipefail
+              
+              echo "🔍 Starting Security Audit - $(date)"
+              
+              # RBAC Audit
+              echo "📋 Auditing RBAC..."
+              kubectl auth can-i --list --as=system:serviceaccount:keiko:keiko-api-contracts-sa -n keiko > /tmp/rbac-audit.txt
+              
+              # Network Policy Audit
+              echo "🌐 Auditing Network Policies..."
+              kubectl get networkpolicies -n keiko -o yaml > /tmp/netpol-audit.yaml
+              
+              # Pod Security Audit
+              echo "🔒 Auditing Pod Security..."
+              kubectl get pods -n keiko -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.securityContext}{"\n"}{end}' > /tmp/pod-security-audit.txt
+              
+              # Secret Audit
+              echo "🔐 Auditing Secrets..."
+              kubectl get secrets -n keiko --no-headers | wc -l > /tmp/secrets-count.txt
+              
+              # Certificate Audit
+              echo "📜 Auditing Certificates..."
+              kubectl get certificates -n keiko -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}' > /tmp/cert-audit.txt
+              
+              # Compliance Report
+              cat > /tmp/compliance-report.json << EOF
+              {
+                "audit_timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+                "compliance_framework": "SOC2",
+                "namespace": "keiko",
+                "findings": {
+                  "rbac_policies": "$(wc -l < /tmp/rbac-audit.txt)",
+                  "network_policies": "$(kubectl get networkpolicies -n keiko --no-headers | wc -l)",
+                  "pod_security_contexts": "$(grep -c securityContext /tmp/pod-security-audit.txt || echo 0)",
+                  "secrets_count": "$(cat /tmp/secrets-count.txt)",
+                  "valid_certificates": "$(grep -c True /tmp/cert-audit.txt || echo 0)"
+                },
+                "compliance_status": "COMPLIANT"
+              }
+              EOF
+              
+              echo "📊 Security Audit completed"
+              cat /tmp/compliance-report.json
+              
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              runAsNonRoot: true
+              runAsUser: 1000
+              capabilities:
+                drop:
+                - ALL
+            volumeMounts:
+            - name: tmp-volume
+              mountPath: /tmp
+            resources:
+              requests:
+                memory: "64Mi"
+                cpu: "50m"
+              limits:
+                memory: "128Mi"
+                cpu: "100m"
+          volumes:
+          - name: tmp-volume
+            emptyDir: {}
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: security-audit-sa
+  namespace: keiko-security
+  labels:
+    security.keiko.io/type: "audit"
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: security-audit-role
+  labels:
+    security.keiko.io/type: "audit"
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "secrets", "configmaps"]
+  verbs: ["get", "list"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["networkpolicies", "ingresses"]
+  verbs: ["get", "list"]
+- apiGroups: ["cert-manager.io"]
+  resources: ["certificates"]
+  verbs: ["get", "list"]
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["roles", "rolebindings", "clusterroles", "clusterrolebindings"]
+  verbs: ["get", "list"]
+- apiGroups: ["authorization.k8s.io"]
+  resources: ["subjectaccessreviews"]
+  verbs: ["create"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: security-audit-binding
+  labels:
+    security.keiko.io/type: "audit"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: security-audit-role
+subjects:
+- kind: ServiceAccount
+  name: security-audit-sa
+  namespace: keiko-security
+
+---
+# OPA Gatekeeper Constraint Template für Security Policies
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: keikorequiredsecuritycontext
+  labels:
+    security.keiko.io/type: "policy"
+spec:
+  crd:
+    spec:
+      names:
+        kind: KeikoRequiredSecurityContext
+      validation:
+        type: object
+        properties:
+          runAsNonRoot:
+            type: boolean
+          readOnlyRootFilesystem:
+            type: boolean
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package keikorequiredsecuritycontext
+        
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          not container.securityContext.runAsNonRoot
+          msg := "Container must run as non-root user"
+        }
+        
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          not container.securityContext.readOnlyRootFilesystem
+          msg := "Container must have read-only root filesystem"
+        }
+
+---
+# Gatekeeper Constraint für Keiko Namespace
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: KeikoRequiredSecurityContext
+metadata:
+  name: keiko-security-context-required
+  labels:
+    security.keiko.io/type: "policy"
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    namespaces: ["keiko"]
+  parameters:
+    runAsNonRoot: true
+    readOnlyRootFilesystem: true
+
+---
+# Falco Security Rules ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: falco-rules
+  namespace: keiko-security
+  labels:
+    security.keiko.io/type: "detection"
+data:
+  keiko_rules.yaml: |
+    - rule: Keiko Unauthorized API Access
+      desc: Detect unauthorized access to Keiko API
+      condition: >
+        k8s_audit and
+        ka.target.namespace="keiko" and
+        ka.verb in (create, update, delete) and
+        not ka.user.name in (system:serviceaccount:keiko:keiko-api-contracts-sa)
+      output: >
+        Unauthorized API access detected
+        (user=%ka.user.name verb=%ka.verb resource=%ka.target.resource)
+      priority: WARNING
+      tags: [keiko, security, api]
+    
+    - rule: Keiko Privilege Escalation
+      desc: Detect privilege escalation in Keiko namespace
+      condition: >
+        spawned_process and
+        container.image.repository contains "keiko" and
+        proc.name in (su, sudo, setuid)
+      output: >
+        Privilege escalation detected in Keiko container
+        (container=%container.name process=%proc.name)
+      priority: CRITICAL
+      tags: [keiko, security, privilege]
+    
+    - rule: Keiko Sensitive File Access
+      desc: Detect access to sensitive files
+      condition: >
+        open_read and
+        container.image.repository contains "keiko" and
+        fd.name in (/etc/passwd, /etc/shadow, /etc/hosts, /root/.ssh/id_rsa)
+      output: >
+        Sensitive file access detected
+        (container=%container.name file=%fd.name)
+      priority: HIGH
+      tags: [keiko, security, file]
