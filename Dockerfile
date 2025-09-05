@@ -10,11 +10,11 @@ COPY package.json ./package.json
 RUN npm install --only=production
 
 # API-Contracts kopieren
-COPY openapi/ ./contracts/openapi/
-COPY asyncapi/ ./contracts/asyncapi/
-COPY protobuf/ ./contracts/protobuf/
-COPY versions.yaml ./contracts/
-COPY README.md ./contracts/
+COPY openapi/ ./openapi/
+COPY asyncapi/ ./asyncapi/
+COPY protobuf/ ./protobuf/
+COPY versions.yaml ./versions.yaml
+COPY README.md ./README.md
 
 # Server-Script kopieren
 COPY server.js ./server.js
