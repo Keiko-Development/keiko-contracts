@@ -267,5 +267,5 @@ local.properties
 /nbdist/
 /.nb-gradle/
 
-# MCP
-.mcp.json
+# Claude AI Assistant
+/CLAUDE.md
