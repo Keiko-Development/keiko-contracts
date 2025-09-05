@@ -49,13 +49,23 @@ curl http://localhost:3001/health
 
 ```bash
 # Von GitHub Container Registry (empfohlen)
-docker run -p 3001:3000 ghcr.io/keiko-development/keiko-contracts:latest
+docker run -d -p 3001:3000 --name keiko-contracts \
+  ghcr.io/keiko-development/keiko-contracts:latest
 
 # Von Docker Hub
-docker run -p 3001:3000 oscharko/keiko-api-contracts:latest
+docker run -d -p 3001:3000 --name keiko-contracts \
+  oscharko/keiko-api-contracts:latest
 
 # Health Check
 curl http://localhost:3001/health
+
+# Optional: Mit lokalen Spezifikationsdateien (für Entwicklung)
+docker run -d -p 3001:3000 --name keiko-contracts \
+  -v "$(pwd)/openapi:/app/openapi:ro" \
+  -v "$(pwd)/asyncapi:/app/asyncapi:ro" \
+  -v "$(pwd)/protobuf:/app/protobuf:ro" \
+  -v "$(pwd)/versions.yaml:/app/versions.yaml:ro" \
+  oscharko/keiko-api-contracts:latest
 ```
 
 #### 📦 Verfügbare Docker Images
@@ -97,6 +107,14 @@ docker build -t keiko-api-contracts .
 
 # Container starten
 docker run -d -p 3001:3000 --name keiko-api-contracts keiko-api-contracts
+
+# Optional: Mit lokalen Spezifikationsdateien (überschreibt die eingebauten)
+docker run -d -p 3001:3000 --name keiko-api-contracts \
+  -v "$(pwd)/openapi:/app/openapi:ro" \
+  -v "$(pwd)/asyncapi:/app/asyncapi:ro" \
+  -v "$(pwd)/protobuf:/app/protobuf:ro" \
+  -v "$(pwd)/versions.yaml:/app/versions.yaml:ro" \
+  keiko-api-contracts
 ```
 
 ### Lokale Entwicklung
@@ -120,15 +138,19 @@ Der Service stellt folgende HTTP-Endpoints bereit:
 ```bash
 # Health Check
 GET /health
-# Response: {"status":"healthy","timestamp":"2025-09-04T14:11:32.037Z","service":"keiko-api-contracts"}
+# Response: {"status":"healthy","timestamp":"2025-09-05T06:01:05.522Z","service":"keiko-api-contracts","version":"1.0.0","correlationId":"..."}
 
 # API-Versionen abrufen
 GET /versions
-# Response: Vollständige Versionsinformationen aus versions.yaml
+# Response: Vollständige Versionsinformationen aus versions.yaml (JSON Format)
 
 # Alle verfügbaren Spezifikationen auflisten
 GET /specs
-# Response: {"openapi":[...],"asyncapi":[...],"protobuf":[...],"frontend_spec":"/frontend/openapi.json","backend_spec":"/backend/openapi.json"}
+# Response: {"openapi":[...],"asyncapi":[...],"protobuf":[...],"frontend_spec":"/frontend/openapi.json","backend_spec":"/backend/openapi.json","metrics":"/metrics","health":"/health","versions":"/versions"}
+
+# Prometheus-Metriken
+GET /metrics
+# Response: Prometheus-kompatible Metriken für Monitoring
 ```
 
 ### Frontend/Backend-spezifische Endpoints
@@ -164,11 +186,17 @@ GET /protobuf/{filename}
 ### Content-Type-Unterstützung
 
 ```bash
-# JSON-Response (Standard)
+# JSON-Response (Standard für OpenAPI/AsyncAPI)
 curl http://localhost:3001/openapi/backend-frontend-api-v1.yaml
+# Response: OpenAPI-Spezifikation als JSON
 
-# YAML-Response
+# YAML-Response (mit Accept-Header)
 curl -H "Accept: application/yaml" http://localhost:3001/openapi/backend-frontend-api-v1.yaml
+# Response: OpenAPI-Spezifikation als YAML
+
+# Protobuf-Dateien werden immer als Plain Text zurückgegeben
+curl http://localhost:3001/protobuf/agent_service.proto
+# Response: .proto Datei als Text
 ```
 
 ## 🔗 Integration & Verwendung
