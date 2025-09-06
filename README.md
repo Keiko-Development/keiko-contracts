@@ -1,517 +1,168 @@
-# Keiko API-Contracts Service
+# Keiko Contracts
 
-Containerisierter HTTP-Service für API-Verträge und Spezifikationen der Keiko Personal Assistant Plattform.
+**Master Contract Governance Authority** für die Keiko Multi-Agent AI Platform
 
-## 🎯 Überblick
+## Überblick
 
-Der Keiko API-Contracts Service ist ein Node.js-basierter HTTP-Service, der OpenAPI-, AsyncAPI- und
-Protobuf-Spezifikationen über REST-Endpoints bereitstellt. Dieser Service ermöglicht es Keiko-Face und Keiko-Backbone, die
-aktuellen API-Spezifikationen dynamisch über HTTP abzurufen.
+keiko-contracts fungiert als zentrale **Contract Governance Authority** für ein Kubernetes-basiertes Multi-Agent-KI-System und implementiert ein revolutionäres **Contract-First Development Paradigma**, das Zero-Breaking-Change API Evolution über alle Systemkomponenten hinweg ermöglicht.
 
-## 🏗️ Architektur
+Als einzige Quelle der Wahrheit für API-Spezifikationen, Protokoll-Definitionen und Kommunikationsstandards orchestriert keiko-contracts die nahtlose Integration zwischen den drei zentralen Systemkomponenten der Keiko-Plattform:
 
-### Service-Features
+- **keiko-backbone**: Python Infrastructure Services
+- **keiko-face**: TypeScript/React Frontend
+- **keiko-contracts**: Node.js Contract Management Service
 
-- **HTTP-REST-API** für Spezifikations-Zugriff
-- **YAML-zu-JSON-Konvertierung** automatisch
-- **CORS-Unterstützung** für Frontend/Backend-Integration
-- **Health Checks** für Kubernetes/Docker
-- **Sicherheitsfeatures** mit Helmet.js
-- **Containerisiert** mit Docker und Docker Compose
+Zusätzlich ermöglicht die **keiko-agent-py-sdk** die Erstellung beliebig vieler weiterer Systemkomponenten durch Third-Party-Entwickler, die alle ihre API-Definitionen zentral von keiko-contracts beziehen und somit nahtlos in das Gesamtsystem integriert werden.
 
-### Verzeichnisstruktur
+## Architektonische Innovation
 
-- `openapi/` - REST API-Spezifikationen (OpenAPI 3.0)
-- `asyncapi/` - Real-time Event-Spezifikationen (AsyncAPI)
-- `protobuf/` - gRPC Protocol-Definitionen
-- `versions.yaml` - Versionsverwaltung aller Contracts
-- `kubernetes/` - Kubernetes-Deployment-Manifeste
-- `docker-compose.dev-multi-repo.yml` - Docker Compose-Konfiguration
+### Contract-First Development Paradigma
 
-## 🚀 Installation & Setup
+keiko-contracts etabliert einen fundamentalen Paradigmenwechsel von Implementation-First zu Contract-First Development. Diese revolutionäre Architektur ermöglicht Zero-Breaking-Change Evolution durch intelligente Schema-Migration und KI-gestützte Kompatibilitätsprüfung.
 
-### Voraussetzungen
+**Kernprinzipien:**
+- **API Design Before Implementation**: Vollständige API-Spezifikation vor Implementierungsbeginn
+- **Consumer-Driven Contracts**: API-Design basierend auf Anforderungen konsumierender Services
+- **Evolutionary Architecture**: APIs für kontinuierliche Evolution ohne Breaking Changes konzipiert
+- **Documentation as Code**: Dokumentation als versionierter Code behandelt
 
-- Docker & Docker Compose
-- Node.js 18+ (für lokale Entwicklung)
+### Universal Protocol Translation Engine
 
-### Mit Docker Compose (Empfohlen)
+Das Protocol-Agnostic Communication Layer unterstützt nahtlose Translation zwischen beliebigen Kommunikationsprotokollen und implementiert adaptive Protokoll-Selektion für optimale Performance:
 
-```bash
-# Service starten
-docker-compose -f docker-compose.dev-multi-repo.yml up -d keiko-api-contracts
+**Unterstützte Protokolle:**
+- **REST/HTTP**: Traditional REST APIs mit erweiterten HTTP-Features
+- **GraphQL**: Type-safe GraphQL mit automatischem Schema-Stitching
+- **gRPC**: High-Performance Binary Communication mit Streaming-Support
+- **WebSocket**: Real-Time Bidirectional Communication
+- **MQTT/CoAP**: IoT-optimierte Protokolle für Edge-Computing
+- **Custom Protocols**: Framework für Integration proprietärer Protokolle
 
-# Service ist verfügbar unter:
-curl http://localhost:3001/health
-```
+### Semantic API Evolution Framework
 
-### Mit Docker (Empfohlen)
+Das revolutionäre Semantic API Evolution Framework implementiert Zero-Breaking-Change API Evolution durch eine Kombination aus automatischer Schema Migration, Backward Compatibility Synthesis und Forward Compatibility Prediction.
 
-```bash
-# Von GitHub Container Registry (empfohlen)
-docker run -d -p 3001:3000 --name keiko-contracts \
-  ghcr.io/keiko-development/keiko-contracts:latest
+**Intelligente Schema Evolution:**
+- **Semantic Diff Analysis**: KI-gestützte Analyse von Schema-Änderungen mit Impact-Bewertung
+- **Automatic Migration Generation**: Automatische Generierung von Migrations-Scripts für Schema-Updates
+- **Compatibility Prediction Models**: ML-Modelle zur Vorhersage von Kompatibilitätsproblemen
+- **Breaking Change Prevention**: Proaktive Verhinderung von Breaking Changes durch Design-Constraints
 
-# Von Docker Hub
-docker run -d -p 3001:3000 --name keiko-contracts \
-  oscharko/keiko-api-contracts:latest
+## Enterprise Contract Management
 
-# Health Check
-curl http://localhost:3001/health
+### Master Contract Registry
 
-# Optional: Mit lokalen Spezifikationsdateien (für Entwicklung)
-docker run -d -p 3001:3000 --name keiko-contracts \
-  -v "$(pwd)/openapi:/app/openapi:ro" \
-  -v "$(pwd)/asyncapi:/app/asyncapi:ro" \
-  -v "$(pwd)/protobuf:/app/protobuf:ro" \
-  -v "$(pwd)/versions.yaml:/app/versions.yaml:ro" \
-  oscharko/keiko-api-contracts:latest
-```
+Als zentrale Contract Authority verwaltet keiko-contracts alle API-Contracts im System mit höchster Präzision und Detailtiefe:
 
-#### 📦 Verfügbare Docker Images
+**Contract Definition Framework:**
+- **OpenAPI 3.1+ Specifications**: Erweiterte OpenAPI-Spezifikationen mit Custom Extensions für Agent-spezifische Metadaten
+- **GraphQL Schema Definitions**: Type-safe GraphQL Schemas mit automatischer Schema-Stitching
+- **gRPC Protocol Buffers**: High-Performance Binary Protocols für latency-kritische Agent-Kommunikation
+- **AsyncAPI Specifications**: Event-driven Communication Contracts für asynchrone Message-Patterns
 
-| Registry | Image | Beschreibung |
-|----------|-------|--------------|
-| **GitHub Container Registry** | `ghcr.io/keiko-development/keiko-contracts` | Automatisch von GitHub Actions gebaut |
-| **Docker Hub** | `oscharko/keiko-api-contracts` | Öffentlich verfügbar |
+### Advanced Versioning Strategies
 
-**Verfügbare Tags:** `latest`, `main`, `develop`, `v1.0.0`
-**Plattformen:** `linux/amd64`, `linux/arm64`
+**Semantic Versioning Plus**: Erweiterte Semantic Versioning mit Breaking-Change-Prediction und Impact-Analysis
+- **Backward Compatibility Matrix**: Automatische Generierung von Kompatibilitäts-Matrizen zwischen API-Versionen
+- **Forward Compatibility Synthesis**: KI-gestützte Vorhersage zukünftiger API-Anforderungen für proaktive Kompatibilität
+- **Deprecation Lifecycle Management**: Intelligente Deprecation-Strategien mit automatischen Migration-Pfaden
 
-### Mit Docker Compose (Einfachste Methode)
+### Multi-Dimensional Validation
 
-```bash
-# Service starten
-docker-compose up -d
+**Umfassendes Validierungssystem** mit Multi-Level-Validierung von Syntax bis Semantik:
+- **Syntax Validation**: Strikte Überprüfung der JSON/XML/Protocol Buffer Syntax
+- **Schema Validation**: Type-safe Validation gegen definierte Datenstrukturen
+- **Business Rule Validation**: Überprüfung von Geschäftslogik-Constraints und -Regeln
+- **Cross-Service Consistency**: Validation der Konsistenz zwischen verschiedenen Service-Contracts
 
-# Mit Monitoring (Prometheus + Grafana)
-docker-compose --profile monitoring up -d
+## Cross-System Integration
 
-# Logs anzeigen
-docker-compose logs -f
+### Unified Contract Governance Authority
 
-# Service stoppen
-docker-compose down
-```
+Als einziger Contract-Authorizer orchestriert keiko-contracts die contract-bezogenen Aspekte der drei zentralen Systemkomponenten und stellt gleichzeitig die Contract-Grundlage für alle durch die keiko-agent-py-sdk erstellten Third-Party-Systemkomponenten bereit:
 
-**Verfügbare Services:**
-- API Contracts: http://localhost:3001
-- Prometheus: http://localhost:9090 (nur mit `--profile monitoring`)
-- Grafana: http://localhost:3000 (nur mit `--profile monitoring`, Login: admin/admin123)
+**Interface zu keiko-backbone:**
+- **Infrastructure Contract Definitions**: Definition aller Infrastructure-API-Contracts
+- **Service Registration Contract Templates**: Bereitstellung von Contract-Templates für Service-Registry
+- **Event Schema Authority**: Authoritative Definition aller Event-Schemas im System
+- **Protocol Translation Rule Management**: Zentrale Verwaltung aller Protokoll-Übersetzungsregeln
 
-### Lokales Build
+**Interface zu keiko-face:**
+- **Backend-API Contract Authority**: Definition aller Backend-API-Contracts für UI-Consumption
+- **System Event Schema Definitions**: Event-Schemas für UI-Event-Consumption
+- **Authentication Protocol Contracts**: API-Contracts für Authentication-Flows
+- **Real-Time Communication Contracts**: WebSocket/SSE-Protokoll-Definitionen
 
-```bash
-# Image selbst bauen
-docker build -t keiko-api-contracts .
+**Interface zu keiko-agent-py-sdk und Third-Party-Systemkomponenten:**
+- **SDK Contract Specifications**: Umfassende Contract-Definitionen für SDK-Entwicklung
+- **Agent Registration Protocols**: Standardisierte Protokolle für Agent-Registrierung beliebig vieler Third-Party-Komponenten
+- **Capability Declaration Standards**: Einheitliche Standards für Capability-Deklaration aller SDK-basierten Systemkomponenten
+- **Communication Protocol Templates**: Vorgefertigte Templates für verschiedene Communication-Patterns zur nahtlosen Integration neuer Systemkomponenten
 
-# Container starten
-docker run -d -p 3001:3000 --name keiko-api-contracts keiko-api-contracts
+## Enterprise Security Framework
 
-# Optional: Mit lokalen Spezifikationsdateien (überschreibt die eingebauten)
-docker run -d -p 3001:3000 --name keiko-api-contracts \
-  -v "$(pwd)/openapi:/app/openapi:ro" \
-  -v "$(pwd)/asyncapi:/app/asyncapi:ro" \
-  -v "$(pwd)/protobuf:/app/protobuf:ro" \
-  -v "$(pwd)/versions.yaml:/app/versions.yaml:ro" \
-  keiko-api-contracts
-```
+### API Security Framework
 
-### Lokale Entwicklung
+**Authentication und Authorization Contracts**: Einheitliche Sicherheitsstandards für alle APIs
+- **OAuth 2.1/OIDC Integration**: Moderne Authentication-Standards mit PKCE und Security Best Practices
+- **JWT Token Management**: Sichere Token-Verwaltung mit automatischer Rotation
+- **API Key Management**: Sichere Verwaltung und Rotation von API-Keys
+- **mTLS Certificate Management**: Mutual TLS für Service-to-Service Authentication
 
-```bash
-# Dependencies installieren
-npm install
+### Data Protection und Privacy
 
-# Service starten
-npm start
+**Privacy-by-Design Contracts**: Eingebaute Privacy-Mechanismen in allen API-Definitionen
+- **Data Classification Standards**: Automatische Klassifizierung von Daten basierend auf Sensitivität
+- **Consent Management Protocols**: Standardisierte Protokolle für Einwilligungsverwaltung
+- **Data Minimization Enforcement**: Automatische Durchsetzung von Data Minimization Principles
+- **Right to be Forgotten Implementation**: Standardisierte Implementierung des Rechts auf Löschung
 
-# Service läuft auf http://localhost:3000
-```
+### Compliance und Audit
 
-## 📡 API-Endpoints
+**Regulatory Compliance Frameworks**: Automatische Compliance-Überwachung
+- **GDPR Compliance Automation**: Automatische GDPR-Compliance-Prüfungen
+- **CCPA/CPRA Support**: Unterstützung für California Privacy Rights Act
+- **Industry-Specific Compliance**: Branchenspezifische Compliance-Frameworks (HIPAA, PCI-DSS, SOX)
+- **Cross-Border Data Transfer**: Compliance für internationale Datenübertragung
 
-Der Service stellt folgende HTTP-Endpoints bereit:
+## Performance und Skalierung
 
-### Health & Status
+### High-Performance Contract Processing
 
-```bash
-# Health Check
-GET /health
-# Response: {"status":"healthy","timestamp":"2025-09-05T06:01:05.522Z","service":"keiko-api-contracts","version":"1.0.0","correlationId":"..."}
+**Optimized Contract Parsing**: Ultra-schnelle Contract-Verarbeitung für minimale Latency
+- **Compiled Contract Validation**: Vorkompilierte Validation-Rules für maximale Performance
+- **Caching Strategies**: Multi-Level Caching für Contract-Definitionen und Validation-Results
+- **Parallel Processing**: Parallele Verarbeitung von Contract-Validations
+- **Memory-Optimized Storage**: Optimierte In-Memory-Speicherung von Contract-Daten
 
-# API-Versionen abrufen
-GET /versions
-# Response: Vollständige Versionsinformationen aus versions.yaml (JSON Format)
+### Global Distribution
 
-# Alle verfügbaren Spezifikationen auflisten
-GET /specs
-# Response: {"openapi":[...],"asyncapi":[...],"protobuf":[...],"frontend_spec":"/frontend/openapi.json","backend_spec":"/backend/openapi.json","metrics":"/metrics","health":"/health","versions":"/versions"}
+**Multi-Region Contract Synchronization**: Globale Synchronisation von Contract-Definitionen
+- **Eventually Consistent Replication**: Optimierte Replikation mit Eventually Consistency
+- **Conflict Resolution**: Automatische Auflösung von Replikations-Konflikten
+- **Regional Failover**: Automatisches Failover zwischen Regionen
+- **Latency-Optimized Routing**: Routing zu nächstgelegenen Contract-Services
 
-# Prometheus-Metriken
-GET /metrics
-# Response: Prometheus-kompatible Metriken für Monitoring
-```
+## Zukunftsvision
 
-### Frontend/Backend-spezifische Endpoints
+### AI-Powered Contract Evolution
 
-```bash
-# Frontend OpenAPI-Spezifikation (JSON)
-GET /frontend/openapi.json
-# Response: Vollständige OpenAPI-Spec für Frontend-Integration
+**Intelligent Contract Generation**: KI-gestützte Generierung von API-Contracts
+- **Natural Language to Contract**: Automatische Generierung von Contracts aus natürlichsprachlichen Beschreibungen
+- **Pattern Recognition**: Erkennung von Patterns in bestehenden Contracts für Optimierungsvorschläge
+- **Automated Optimization**: Automatische Optimierung von Contracts für Performance und Usability
+- **Predictive Contract Design**: Vorhersage zukünftiger Contract-Anforderungen basierend auf Trends
 
-# Backend OpenAPI-Spezifikation (JSON)
-GET /backend/openapi.json
-# Response: Vollständige OpenAPI-Spec für Backend-Integration
-```
+### Quantum-Enhanced Security
 
-### Generische Spezifikations-Endpoints
-
-```bash
-# OpenAPI-Spezifikationen
-GET /openapi/{filename}
-# Beispiel: GET /openapi/backend-frontend-api-v1.yaml
-# Response: JSON oder YAML (basierend auf Accept-Header)
-
-# AsyncAPI-Spezifikationen
-GET /asyncapi/{filename}
-# Beispiel: GET /asyncapi/backend-frontend-events-v1.yaml
-
-# Protobuf-Definitionen
-GET /protobuf/{filename}
-# Beispiel: GET /protobuf/agent_service.proto
-# Response: Plain text .proto-Datei
-```
-
-### Content-Type-Unterstützung
-
-```bash
-# JSON-Response (Standard für OpenAPI/AsyncAPI)
-curl http://localhost:3001/openapi/backend-frontend-api-v1.yaml
-# Response: OpenAPI-Spezifikation als JSON
-
-# YAML-Response (mit Accept-Header)
-curl -H "Accept: application/yaml" http://localhost:3001/openapi/backend-frontend-api-v1.yaml
-# Response: OpenAPI-Spezifikation als YAML
-
-# Protobuf-Dateien werden immer als Plain Text zurückgegeben
-curl http://localhost:3001/protobuf/agent_service.proto
-# Response: .proto Datei als Text
-```
-
-## 🔗 Integration & Verwendung
-
-### Frontend-Integration
-
-```javascript
-// OpenAPI-Spec für Client-Generierung abrufen
-const response = await fetch('http://localhost:3001/frontend/openapi.json');
-const openApiSpec = await response.json();
-
-// Verwendung mit OpenAPI-Generator
-// npx @openapitools/openapi-generator-cli generate \
-//   -i http://localhost:3001/frontend/openapi.json \
-//   -g typescript-axios \
-//   -o ./src/api/generated
-```
-
-### Backend-Integration
-
-```python
-# Python-Backend: OpenAPI-Spec für Validierung laden
-import requests
-import yaml
-
-# Spec abrufen
-response = requests.get('http://localhost:3001/backend/openapi.json')
-api_spec = response.json()
-
-# Für FastAPI/Flask-Integration verwenden
-```
-
-### SDK-Integration
-
-```bash
-# gRPC-Clients aus Protobuf-Definitionen generieren
-curl http://localhost:3001/protobuf/agent_service.proto -o agent_service.proto
-python -m grpc_tools.protoc --python_out=. --grpc_python_out=. agent_service.proto
-```
-
-### CI/CD-Pipeline-Integration
-
-```yaml
-# .github/workflows/api-contracts.yml
-- name: Validate API Contracts
-  run: |
-    # Health Check
-    curl -f http://localhost:3001/health
-
-    # Specs abrufen und validieren
-    curl http://localhost:3001/specs | jq .
-
-    # Client-Code generieren
-    curl http://localhost:3001/frontend/openapi.json -o openapi.json
-    npx @openapitools/openapi-generator-cli validate -i openapi.json
-```
-
-## 🐳 Docker & Kubernetes
-
-### Docker Compose-Konfiguration
-
-```yaml
-# docker-compose.dev-multi-repo.yml
-services:
-  keiko-api-contracts:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: keiko-api-contracts-dev
-    ports:
-      - "3001:3000"
-    environment:
-      - NODE_ENV=development
-      - PORT=3000
-    volumes:
-      - ./openapi:/app/contracts/openapi:ro
-      - ./asyncapi:/app/contracts/asyncapi:ro
-      - ./protobuf:/app/contracts/protobuf:ro
-      - ./versions.yaml:/app/contracts/versions.yaml:ro
-    networks:
-      - keiko-network
-    healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    restart: unless-stopped
-```
-
-### Kubernetes-Deployment
-
-```bash
-# Deployment anwenden
-kubectl apply -f kubernetes/deployment.yaml
-
-# Service-Status prüfen
-kubectl get pods -n keiko -l app=keiko-api-contracts
-kubectl get svc -n keiko keiko-api-contracts-service
-
-# Logs anzeigen
-kubectl logs -n keiko -l app=keiko-api-contracts -f
-```
-
-### Kubernetes-Manifest (kubernetes/deployment.yaml)
-
-- **Replicas:** 2 für High Availability
-- **Resources:** 128Mi-256Mi Memory, 100m-200m CPU
-- **Health Checks:** Liveness & Readiness Probes auf `/health`
-- **Service:** ClusterIP auf Port 3000
-
-## 🔒 Sicherheit & CORS
-
-### CORS-Konfiguration
-
-Der Service ist für folgende Origins konfiguriert:
-
-- `http://localhost:3000` (Frontend)
-- `http://localhost:8000` (Backend)
-- `http://localhost:3001` (Frontend Dev)
-- `http://localhost:8001` (Backend Dev)
-
-### Sicherheitsfeatures
-
-- **Helmet.js:** Security Headers (CSP, HSTS, X-Frame-Options, etc.)
-- **CORS:** Konfigurierte Cross-Origin-Requests
-- **Input Validation:** Pfad-Validierung für Datei-Zugriffe
-- **Error Handling:** Sichere Fehlerbehandlung ohne Informationsleckage
-
-```bash
-# CORS-Test
-curl -H "Origin: http://localhost:3000" \
-     -H "Access-Control-Request-Method: GET" \
-     -X OPTIONS \
-     http://localhost:3001/frontend/openapi.json -I
-```
-
-## 📋 Versionierung
-
-Alle API-Contracts folgen Semantic Versioning:
-
-- **Major Version:** Breaking Changes
-- **Minor Version:** Neue Features (rückwärtskompatibel)
-- **Patch Version:** Bug Fixes
-
-### Aktuelle Versionen
-
-Siehe `versions.yaml` für alle aktuellen Versionen:
-
-```bash
-# Versionsinformationen abrufen
-curl http://localhost:3001/versions | jq '.openapi.backend_frontend_api.current_version'
-```
-
-### Verfügbare Spezifikationen
-
-```bash
-# Alle verfügbaren Specs auflisten
-curl http://localhost:3001/specs | jq '.'
-```
-
-## 🔄 Entwicklungsworkflow
-
-### 1. API-Contract definieren
-
-```bash
-# Neue OpenAPI-Spezifikation erstellen
-vim openapi/new-api-v1.yaml
-
-# AsyncAPI für Events definieren
-vim asyncapi/new-events-v1.yaml
-
-# Protobuf für gRPC-Services
-vim protobuf/new_service.proto
-```
-
-### 2. Versionierung aktualisieren
-
-```yaml
-# versions.yaml erweitern
-openapi:
-  new_api:
-    current_version: "1.0.0"
-    versions:
-      "1.0.0":
-        file: "openapi/new-api-v1.yaml"
-        status: "active"
-        release_date: "2025-09-04"
-```
-
-### 3. Service testen
-
-```bash
-# Container neu bauen
-docker-compose -f docker-compose.dev-multi-repo.yml build keiko-api-contracts
-
-# Service starten
-docker-compose -f docker-compose.dev-multi-repo.yml up -d keiko-api-contracts
-
-# Neue Spezifikation testen
-curl http://localhost:3001/openapi/new-api-v1.yaml
-```
-
-### 4. Client-Code generieren
-
-```bash
-# Frontend-Clients generieren
-curl http://localhost:3001/frontend/openapi.json -o frontend-api.json
-npx @openapitools/openapi-generator-cli generate \
-  -i frontend-api.json \
-  -g typescript-axios \
-  -o ./generated/frontend
-
-# Backend-Validierung
-curl http://localhost:3001/backend/openapi.json -o backend-api.json
-```
-
-### 5. Integration testen
-
-```bash
-# End-to-End-Tests
-npm test
-
-# API-Contract-Validierung
-curl http://localhost:3001/health
-curl http://localhost:3001/specs | jq '.openapi | length'
-```
-
-## 🧪 Testing & Monitoring
-
-### Health Checks
-
-```bash
-# Service-Gesundheit prüfen
-curl http://localhost:3001/health
-
-# Docker Health Check
-docker ps --filter "name=keiko-api-contracts" --format "table {{.Names}}\t{{.Status}}"
-
-# Kubernetes Health Check
-kubectl get pods -n keiko -l app=keiko-api-contracts
-```
-
-### Monitoring
-
-```bash
-# Container-Logs
-docker logs keiko-api-contracts-dev -f
-
-# Kubernetes-Logs
-kubectl logs -n keiko -l app=keiko-api-contracts -f
-
-# Service-Metriken
-curl http://localhost:3001/specs | jq 'keys'
-```
-
-### Troubleshooting
-
-```bash
-# Container-Status prüfen
-docker-compose -f docker-compose.dev-multi-repo.yml ps
-
-# Service-Endpoints testen
-curl -v http://localhost:3001/health
-curl -v http://localhost:3001/specs
-
-# CORS-Probleme debuggen
-curl -H "Origin: http://localhost:3000" -v http://localhost:3001/frontend/openapi.json
-```
-
-## 📚 Verfügbare Spezifikationen
-
-### OpenAPI (REST APIs)
-
-- `backend-frontend-api-v1.yaml` - Haupt-API zwischen Backend und Frontend
-- `backend-sdk-api-v1.yaml` - SDK-Integration-API
-- `platform-sdk-events-api-v1.yaml` - Platform SDK Events
-- `platform-sdk-management-api-v1.yaml` - Platform SDK Management
-
-### AsyncAPI (Real-time Events)
-
-- `backend-events-v1.yaml` - Backend-interne Events
-- `backend-frontend-events-v1.yaml` - Real-time Events zwischen Backend/Frontend
-- `platform-sdk-realtime-events-v1.yaml` - Platform SDK Real-time Events
-
-### Protobuf (gRPC)
-
-- `agent_service.proto` - Agent-Service gRPC-Definition
-- `platform/` - Platform-spezifische Protobuf-Definitionen
-- `sdk/` - SDK-spezifische Protobuf-Definitionen
-
-## 🤝 Beitragen
-
-1. **Fork** das Repository
-2. **Feature Branch** erstellen (`git checkout -b feature/neue-api`)
-3. **Änderungen committen** (`git commit -am 'Neue API hinzugefügt'`)
-4. **Branch pushen** (`git push origin feature/neue-api`)
-5. **Pull Request** erstellen
-
-### Entwicklungsrichtlinien
-
-- Alle API-Contracts müssen OpenAPI 3.0+ verwenden
-- AsyncAPI 2.0+ für Event-Spezifikationen
-- Semantic Versioning für alle Änderungen
-- Vollständige Dokumentation in `versions.yaml`
-
-## 📄 Lizenz
-
-MIT License - siehe [LICENSE](LICENSE) für Details.
-
-## 🔗 Links
-
-- **Keiko Personal Assistant:** [GitHub Repository](https://github.com/keiko-dev/keiko-personal-assistant)
-- **OpenAPI Specification:** [https://swagger.io/specification/](https://swagger.io/specification/)
-- **AsyncAPI Specification:** [https://www.asyncapi.com/](https://www.asyncapi.com/)
-- **Protocol Buffers:** [https://developers.google.com/protocol-buffers](https://developers.google.com/protocol-buffers)
+**Post-Quantum Cryptography Integration**: Vorbereitung auf Quantum-Computing-Ära
+- **Quantum-Resistant Algorithms**: Integration quantum-resistenter Verschlüsselungsalgorithmen
+- **Quantum Key Distribution**: Unterstützung für Quantum Key Distribution Protocols
+- **Quantum-Safe Digital Signatures**: Implementation quantum-sicherer digitaler Signaturen
+- **Hybrid Cryptography**: Übergangsstrategien mit hybriden Kryptographie-Ansätzen
 
 ---
-*Letzte Aktualisierung: 2025-09-04*
+
+**keiko-contracts** etabliert somit nicht nur die Grundlage für API-gesteuerte Entwicklung, sondern fungiert als **Master Contract Governance Authority**, die intelligente, sichere und selbstoptimierende Kommunikation im gesamten Multi-System-Ökosystem orchestriert.
+
+
