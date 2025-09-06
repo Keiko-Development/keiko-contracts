@@ -222,9 +222,6 @@ vault-root-token*
 *.ipr
 *.iws
 
-# Claude AI Assistant
-.claude/
-
 # Sublime Text
 *.sublime-project
 *.sublime-workspace
@@ -268,4 +265,6 @@ local.properties
 /.nb-gradle/
 
 # Claude AI Assistant
+.claude/
 /CLAUDE.md
+/.mcp.json
